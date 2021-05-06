@@ -1,3 +1,5 @@
+build
+
 # Prerequisites
 *.d
 
@@ -30,3 +32,12 @@
 *.exe
 *.out
 *.app
+
+# VIM
+*~
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+tags
+cscope.*
+Session.vim
+.netrwhist

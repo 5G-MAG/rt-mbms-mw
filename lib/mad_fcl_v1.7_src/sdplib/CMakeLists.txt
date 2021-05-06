@@ -1,0 +1,4 @@
+
+add_compile_options( -fPIC -DLINUX -DSTDC_HEADERS -DHAVE_CTYPE_H -DHAVE_STRING_H -DHAVE_SYS_TYPES_H -DHAVE_SYS_TIME_H -DHAVE_TIME_H -DHAVE_FCNTL_H  -DHAVE_UNISTD_H -DHAVE_SYS_UNISTD_H -DHAVE_SYS_SELECT_H -DHAVE_PTH_PTHREAD_H)
+ADD_LIBRARY( sdplib STATIC
+  osip_port.c osip_list.c sdp_accessor.c sdp_message.c sdplib.c )
