@@ -25,7 +25,6 @@ include_directories(
     "${PROJECT_BINARY_DIR}"
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/src
-    ${PROJECT_SOURCE_DIR}/lib/mad_fcl_v1.7_src
 
     SYSTEM
     ${SPDLOG_INCLUDEDIR}
@@ -40,14 +39,14 @@ link_directories(
 
 set(CMAKE_CXX_CLANG_TIDY clang-tidy --format-style=google --checks=clang-diagnostic-*,clang-analyzer-*,-*,bugprone*,modernize*,performance*)
 
-add_executable(gw src/main.cpp src/FluteReceiver.cpp src/RpRestClient.cpp src/Service.cpp src/RestHandler.cpp)
+add_executable(gw src/main.cpp src/RpRestClient.cpp src/Service.cpp src/RestHandler.cpp src/Gateway.cpp)
 
 target_link_libraries( gw
     LINK_PUBLIC
     spdlog::spdlog
     config++
     cpprestsdk::cpprest
-    flutelib
+    flute
     z
     pthread
     expat
