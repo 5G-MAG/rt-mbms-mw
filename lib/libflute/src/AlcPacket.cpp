@@ -140,5 +140,80 @@ LibFlute::AlcPacket::AlcPacket(char* data, size_t len)
     ext_header_len -= 4;
     ext_header_len -= hel * 4;
   }
+}
 
+LibFlute::AlcPacket::AlcPacket(uint16_t tsi, uint16_t toi, LibFlute::FecOti fec_oti, const std::vector<LibFlute::EncodingSymbol>& symbols, size_t max_size, uint32_t fdt_instance_id)
+  : _fec_oti(fec_oti)
+{
+  auto lct_header_len = 3;
+  if (toi == 0) { // Add extensions for FDT
+    lct_header_len += 5;
+  }
+
+  auto max_packet_length = max_size +
+    lct_header_len * 4
+    + 4 ;
+
+  _buffer = (char*)calloc(max_packet_length, sizeof(char));
+
+  auto lct_header = (lct_header_t*)_buffer;
+
+  lct_header->version = 1;
+  lct_header->half_word_flag = 1;
+  lct_header->lct_header_len = lct_header_len;
+  auto hdr_ptr = _buffer + 4;
+  auto payload_ptr = _buffer + 4 * lct_header_len;
+
+  auto payload_size = EncodingSymbol::to_payload(symbols, payload_ptr, max_size, _fec_oti, ContentEncoding::NONE);
+  _len = 4 * lct_header_len + payload_size;
+  
+  hdr_ptr += 4; // CCI = 0
+  
+  *((uint16_t*)hdr_ptr) = htons(tsi);
+  hdr_ptr += 2;
+  
+  *((uint16_t*)hdr_ptr) = htons(toi);
+  hdr_ptr += 2;
+
+  if (toi == 0) { // Add extensions for FDT
+    *((uint8_t*)hdr_ptr) = EXT_FDT;
+    hdr_ptr += 1;
+    *((uint8_t*)hdr_ptr) = 1 << 4 | (fdt_instance_id & 0x000F0000) >> 16;
+    hdr_ptr += 1;
+    *((uint16_t*)hdr_ptr) = htons(fdt_instance_id & 0x0000FFFF);
+    hdr_ptr += 2;
+
+    *((uint8_t*)hdr_ptr) = EXT_FTI;
+    hdr_ptr += 1;
+    *((uint8_t*)hdr_ptr) = 4; // HEL
+    hdr_ptr += 1;
+    *((uint16_t*)hdr_ptr) = htons((_fec_oti.transfer_length & 0x00FF0000) >> 32);
+    hdr_ptr += 2;
+    *((uint32_t*)hdr_ptr) = htonl(_fec_oti.transfer_length & 0x0000FFFF);
+    hdr_ptr += 4;
+    hdr_ptr += 2; // reserved
+    *((uint16_t*)hdr_ptr) = htons(_fec_oti.encoding_symbol_length);
+    hdr_ptr += 2;
+    *((uint32_t*)hdr_ptr) = htonl(_fec_oti.max_source_block_length);
+    hdr_ptr += 4;
+  }
+
+
+
+  /*
+  memset(&_lct_header, 0, sizeof(_lct_header));
+  _lct_header.version = 1;
+  _lct_header.half_word_flag = 1;
+  if (fec_scheme == LibFlute::FecScheme::CompactNoCode) {
+    _lct_header.codepoint = 0;
+  } else {
+    throw "Only Compact No-Code FEC is supported";
+  }
+  */
+
+}
+
+LibFlute::AlcPacket::~AlcPacket()
+{
+  if (_buffer) free(_buffer);
 }

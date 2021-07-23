@@ -38,7 +38,7 @@ auto OBECA::RpRestClient::getMchInfo() -> web::json::value
   auto res = web::json::value::array();
   try {
     _client->request(methods::GET, "mch_info")
-      .then([&res](http_response response) {
+      .then([&res](http_response response) { // NOLINT
           if (response.status_code() == status_codes::OK) {
             res = response.extract_json().get();
           }

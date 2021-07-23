@@ -26,11 +26,11 @@
 #include "tinyxml2.h" 
 
 
-OBECA::Service::Service(const libconfig::Config& cfg, const std::string& tmgi, const std::string& mcast, unsigned long long tsi, const std::string& iface, boost::asio::io_service& io_service)
+OBECA::Service::Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service)
   : _cfg(cfg)
-  , _tmgi(tmgi)
+  , _tmgi(std::move(tmgi))
   , _tsi(tsi)
-  , _iface(iface)
+  , _iface(std::move(iface))
   , _flute_thread{}
 {
   size_t delim = mcast.find(':');
@@ -38,18 +38,9 @@ OBECA::Service::Service(const libconfig::Config& cfg, const std::string& tmgi, c
     spdlog::error("Invalid multicast address {}", mcast);
     return;
   }
-  std::string base_path = "/tmp/obeca";
-  cfg.lookupValue("gw.cache.base_path", base_path);
-  mkdir(base_path.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); 
-  _target_directory = base_path + "/" + tmgi;
-  mkdir(_target_directory.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); 
-
-  if (nullptr != std::getenv("GW_CACHE_LOCATION")) {
-    _target_directory = std::getenv("GW_CACHE_LOCATION");
-  }
   _mcast_addr = mcast.substr(0, delim);
   _mcast_port = mcast.substr(delim + 1);
-  spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}, target dir {}", _mcast_addr, _mcast_port, _tsi, _target_directory);
+  spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}", _mcast_addr, _mcast_port, _tsi); 
   _flute_thread = std::thread{[&](){
     _flute_receiver = std::make_unique<LibFlute::Receiver>(_iface, _mcast_addr, atoi(_mcast_port.c_str()), _tsi, io_service) ;
   }};
@@ -102,7 +93,7 @@ auto OBECA::Service::tryParseBootstrapFile(std::string str) -> void
 
       if (type == "application/mbms-user-service-description+xml") {
         _service_description = g_mime_object_to_string(current, options);
-      } else if (type == "application/sdp") {
+      } else if (type == "application/sdp" && _sdp.empty()) {
         _sdp = g_mime_object_to_string(current, options);
         _sdp = std::regex_replace(_sdp, std::regex("^\n"), "");
       } else if (type == "application/vnd.apple.mpegurl") {
@@ -128,7 +119,7 @@ auto OBECA::Service::tryParseBootstrapFile(std::string str) -> void
     std::istringstream iss(_sdp);
     for (std::string line; std::getline(iss, line); )
     {
-      const std::regex sdp_line_regex("^([a-z])\=(.+)$");
+      const std::regex sdp_line_regex("^([a-z])\\=(.+)$");
       std::smatch match;
       if (std::regex_match(line, match, sdp_line_regex)) {
         if (match.size() == 3) {
@@ -137,7 +128,7 @@ auto OBECA::Service::tryParseBootstrapFile(std::string str) -> void
           spdlog::debug("{}: {}", field, value);
 
           if (field == "c") {
-            const std::regex value_regex("^IN (IP.) ([0-9\.]+).*$");
+            const std::regex value_regex("^IN (IP.) ([0-9\\.]+).*$");
             std::smatch cmatch;
             if (std::regex_match(value, cmatch, value_regex)) {
               if (cmatch.size() == 3) {

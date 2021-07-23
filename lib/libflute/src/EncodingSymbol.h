@@ -15,12 +15,15 @@ namespace LibFlute {
         , _fec_scheme(fec_scheme) {}
       virtual ~EncodingSymbol() {};
 
-      static std::vector<EncodingSymbol> initialize_from_payload(char* encoded_data, size_t data_len, const FecOti& fec_oti);
+      static std::vector<EncodingSymbol> from_payload(char* encoded_data, size_t data_len, const FecOti& fec_oti, ContentEncoding encoding);
+      static size_t to_payload(const std::vector<EncodingSymbol>&, char* encoded_data, size_t data_len, const FecOti& fec_oti, ContentEncoding encoding);
 
       uint32_t id() const { return _id; };
       uint32_t source_block_number() const { return _source_block_number; };
 
       void decode_to(char* buffer, size_t max_length) const;
+      size_t encode_to(char* buffer, size_t max_length) const;
+      size_t len() const { return _data_len; };
 
     private:
       uint32_t _id = 0;

@@ -42,61 +42,66 @@ auto LibFlute::Receiver::handle_receive_from(const boost::system::error_code& er
 {
   if (!error)
   {
-    auto alc = LibFlute::AlcPacket(_data, bytes_recvd);
+    try {
+      auto alc = LibFlute::AlcPacket(_data, bytes_recvd);
 
-    if (alc.tsi() != _tsi) {
-      return;
-    }
-
-    const std::lock_guard<std::mutex> lock(_files_mutex);
-
-    if (alc.toi() == 0 && (!_fdt || _fdt->instance_id() != alc.fdt_instance_id())) {
-      if (_files.find(alc.toi()) == _files.end()) {
-        FileDeliveryTable::FileEntry fe{0, "", static_cast<uint32_t>(alc.fec_oti().transfer_length), "", "", 0, alc.fec_oti()};
-        _files.emplace(alc.toi(), std::make_shared<LibFlute::File>(fe));
-      }
-    }
-
-    if (_files.find(alc.toi()) != _files.end() && !_files[alc.toi()]->complete()) {
-      auto encoding_symbols = LibFlute::EncodingSymbol::initialize_from_payload(
-          _data + alc.header_length(), 
-          bytes_recvd - alc.header_length(),
-          _files[alc.toi()]->fec_oti());
-
-      for (const auto& symbol : encoding_symbols) {
-        _files[alc.toi()]->put_symbol(symbol);
+      if (alc.tsi() != _tsi) {
+        return;
       }
 
-      auto file = _files[alc.toi()].get();
-      if (_files[alc.toi()]->complete()) {
-        for (auto it = _files.cbegin(); it != _files.cend();)
-        {
-          if (it->second.get() != file && it->second->meta().content_location == file->meta().content_location)
-          {
-            spdlog::debug("Replacing file with TOI {}", it->first);
-            it = _files.erase(it);
-          }
-          else
-          {
-            ++it;
-          }
+      const std::lock_guard<std::mutex> lock(_files_mutex);
+
+      if (alc.toi() == 0 && (!_fdt || _fdt->instance_id() != alc.fdt_instance_id())) {
+        if (_files.find(alc.toi()) == _files.end()) {
+          FileDeliveryTable::FileEntry fe{0, "", static_cast<uint32_t>(alc.fec_oti().transfer_length), "", "", 0, alc.fec_oti()};
+          _files.emplace(alc.toi(), std::make_shared<LibFlute::File>(fe));
+        }
+      }
+
+      if (_files.find(alc.toi()) != _files.end() && !_files[alc.toi()]->complete()) {
+        auto encoding_symbols = LibFlute::EncodingSymbol::from_payload(
+            _data + alc.header_length(), 
+            bytes_recvd - alc.header_length(),
+            _files[alc.toi()]->fec_oti(),
+            alc.content_encoding());
+
+        for (const auto& symbol : encoding_symbols) {
+          _files[alc.toi()]->put_symbol(symbol);
         }
 
-        spdlog::debug("File with TOI {} completed", alc.toi());
-        if (alc.toi() == 0) { // parse complete FDT
-          _fdt = std::make_unique<LibFlute::FileDeliveryTable>(
-              alc.fdt_instance_id(), _files[alc.toi()]->buffer(), _files[alc.toi()]->length());
+        auto file = _files[alc.toi()].get();
+        if (_files[alc.toi()]->complete()) {
+          for (auto it = _files.cbegin(); it != _files.cend();)
+          {
+            if (it->second.get() != file && it->second->meta().content_location == file->meta().content_location)
+            {
+              spdlog::debug("Replacing file with TOI {}", it->first);
+              it = _files.erase(it);
+            }
+            else
+            {
+              ++it;
+            }
+          }
 
-          _files.erase(alc.toi());
-          for (const auto& file_entry : _fdt->file_entries()) {
-            // automatically receive all files in the FDT
-            if (_files.find(file_entry.toi) == _files.end()) {
-              spdlog::debug("Starting reception for file with TOI {}", file_entry.toi);
-              _files.emplace(file_entry.toi, std::make_shared<LibFlute::File>(file_entry));
+          spdlog::debug("File with TOI {} completed", alc.toi());
+          if (alc.toi() == 0) { // parse complete FDT
+            _fdt = std::make_unique<LibFlute::FileDeliveryTable>(
+                alc.fdt_instance_id(), _files[alc.toi()]->buffer(), _files[alc.toi()]->length());
+
+            _files.erase(alc.toi());
+            for (const auto& file_entry : _fdt->file_entries()) {
+              // automatically receive all files in the FDT
+              if (_files.find(file_entry.toi) == _files.end()) {
+                spdlog::debug("Starting reception for file with TOI {}", file_entry.toi);
+                _files.emplace(file_entry.toi, std::make_shared<LibFlute::File>(file_entry));
+              }
             }
           }
         }
       }
+    } catch (std::exception ex) {
+      spdlog::error("Failed to decode ALC/FLUTE packet: {}", ex.what());
     }
 
     _socket.async_receive_from(

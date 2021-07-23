@@ -153,9 +153,13 @@ auto main(int argc, char **argv) -> int {
   std::string uri = "http://0.0.0.0:3020/";
   cfg.lookupValue("gw.http_server.uri", uri);
 
-  boost::asio::io_service io;
-  OBECA::Gateway gw(io, cfg, uri, arguments.flute_interface);
-  io.run();
+  try {
+    boost::asio::io_service io;
+    OBECA::Gateway gw(io, cfg, uri, arguments.flute_interface);
+    io.run();
+  } catch (const std::exception& ex) {
+    spdlog::error("BUG ALERT: Unhandled exception in main: {}", ex.what());
+  }
 
 exit:
   return 0;

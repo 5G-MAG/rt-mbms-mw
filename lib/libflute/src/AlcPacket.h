@@ -3,12 +3,14 @@
 #include <stdint.h>
 #include <vector>
 #include "flute_types.h"
+#include "EncodingSymbol.h"
 
 namespace LibFlute {
   class AlcPacket {
     public:
       AlcPacket(char* data, size_t len);
-      virtual ~AlcPacket() {};
+      AlcPacket(uint16_t tsi, uint16_t toi, FecOti fec_oti, const std::vector<EncodingSymbol>& symbols, size_t max_size, uint32_t fdt_instance_id);
+      ~AlcPacket();
 
       uint64_t tsi() const { return _tsi; };
       uint64_t toi() const { return _toi; };
@@ -19,6 +21,10 @@ namespace LibFlute {
       size_t header_length() const  { return _lct_header.lct_header_len * 4; };
 
       uint32_t fdt_instance_id() const { return _fdt_instance_id; };
+      ContentEncoding content_encoding() const { return _content_encoding; };
+
+      char* data() const { return _buffer; };
+      size_t size() const { return _len; };
 
     private:
       uint64_t _tsi = 0;
@@ -32,8 +38,11 @@ namespace LibFlute {
       ContentEncoding _content_encoding = ContentEncoding::NONE;
       FecOti _fec_oti = {};
 
+      char* _buffer = nullptr;
+      size_t _len;
+
       // RFC5651 5.1 - LCT Header Format
-      struct __attribute__((packed)) {
+      struct __attribute__((packed)) lct_header_t {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
         uint8_t res1:1;
         uint8_t source_packet_indicator:1;

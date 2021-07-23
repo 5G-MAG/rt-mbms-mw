@@ -29,7 +29,7 @@
 namespace OBECA {
   class Service {
     public:
-      Service(const libconfig::Config& cfg, const std::string& tmgi, const std::string& mcast, unsigned long long tsi, const std::string& iface, boost::asio::io_service& io_service);
+      Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service);
 
       virtual ~Service();
 
@@ -63,7 +63,6 @@ namespace OBECA {
       std::string _mcast_addr;
       std::string _mcast_port;
       unsigned long long _tsi = 0;
-      std::string _target_directory;
       std::thread _flute_thread;
       std::unique_ptr<LibFlute::Receiver> _flute_receiver;
 

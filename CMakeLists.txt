@@ -15,7 +15,6 @@ find_package(Boost REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(cpprestsdk REQUIRED)
 find_package(PkgConfig REQUIRED)
-find_package(PkgConfig REQUIRED)
 pkg_check_modules(GMIME REQUIRED IMPORTED_TARGET gmime-3.0)
 pkg_check_modules(TINYXML REQUIRED IMPORTED_TARGET tinyxml2)
 
