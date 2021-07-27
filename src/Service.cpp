@@ -19,24 +19,18 @@
 
 #include <regex>
 #include "Service.h"
-#include "FluteReceiver.h"
+#include "Receiver.h"
 
 #include "spdlog/spdlog.h"
 #include "gmime/gmime.h" 
 #include "tinyxml2.h" 
 
-namespace fcl {
-  extern "C" {
-#include "sdplib/sdp_message.h"
-#include "sdplib/sdplib.h"
-  }
-}
 
-OBECA::Service::Service(const libconfig::Config& cfg, const std::string& tmgi, const std::string& mcast, unsigned long long tsi, const std::string& iface)
+OBECA::Service::Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service)
   : _cfg(cfg)
-  , _tmgi(tmgi)
+  , _tmgi(std::move(tmgi))
   , _tsi(tsi)
-  , _iface(iface)
+  , _iface(std::move(iface))
   , _flute_thread{}
 {
   size_t delim = mcast.find(':');
@@ -44,21 +38,11 @@ OBECA::Service::Service(const libconfig::Config& cfg, const std::string& tmgi, c
     spdlog::error("Invalid multicast address {}", mcast);
     return;
   }
-  std::string base_path = "/tmp/obeca";
-  cfg.lookupValue("gw.cache.base_path", base_path);
-  mkdir(base_path.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); 
-  _target_directory = base_path + "/" + tmgi;
-  mkdir(_target_directory.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH); 
-
-  if (nullptr != std::getenv("GW_CACHE_LOCATION")) {
-    _target_directory = std::getenv("GW_CACHE_LOCATION");
-  }
   _mcast_addr = mcast.substr(0, delim);
   _mcast_port = mcast.substr(delim + 1);
-  spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}, target dir {}", _mcast_addr, _mcast_port, _tsi, _target_directory);
+  spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}", _mcast_addr, _mcast_port, _tsi); 
   _flute_thread = std::thread{[&](){
-    _flute_receiver = std::make_unique<OBECA::FluteReceiver>(_iface, _mcast_addr, _mcast_port, _tsi, _target_directory);
-    _flute_receiver->start();
+    _flute_receiver = std::make_unique<LibFlute::Receiver>(_iface, _mcast_addr, atoi(_mcast_port.c_str()), _tsi, io_service) ;
   }};
 }
 
@@ -70,22 +54,18 @@ OBECA::Service::~Service() {
   }
 }
 
-auto OBECA::Service::fileList() -> std::vector<OBECA::File>
+auto OBECA::Service::fileList() -> std::vector<std::shared_ptr<LibFlute::File>>
 {
   if (_flute_receiver) {
-    return _flute_receiver->fileList();
+    return _flute_receiver->file_list();
   } else {
-    return std::vector<OBECA::File>();
+    return std::vector<std::shared_ptr<LibFlute::File>>();
   }
 }
 
-auto OBECA::Service::tryParseBootstrapFile() -> void
+auto OBECA::Service::tryParseBootstrapFile(std::string str) -> void
 {
   g_mime_init();
-
-  std::ifstream t(_target_directory + "/bootstrap.multipart");
-  std::string str((std::istreambuf_iterator<char>(t)),
-      std::istreambuf_iterator<char>());
 
   // R&S header has no newlines, fix that
   str = std::regex_replace(str, std::regex(" Content-Type:"), "\nContent-Type:");
@@ -113,7 +93,7 @@ auto OBECA::Service::tryParseBootstrapFile() -> void
 
       if (type == "application/mbms-user-service-description+xml") {
         _service_description = g_mime_object_to_string(current, options);
-      } else if (type == "application/sdp") {
+      } else if (type == "application/sdp" && _sdp.empty()) {
         _sdp = g_mime_object_to_string(current, options);
         _sdp = std::regex_replace(_sdp, std::regex("^\n"), "");
       } else if (type == "application/vnd.apple.mpegurl") {
@@ -139,7 +119,7 @@ auto OBECA::Service::tryParseBootstrapFile() -> void
     std::istringstream iss(_sdp);
     for (std::string line; std::getline(iss, line); )
     {
-      const std::regex sdp_line_regex("^([a-z])\=(.+)$");
+      const std::regex sdp_line_regex("^([a-z])\\=(.+)$");
       std::smatch match;
       if (std::regex_match(line, match, sdp_line_regex)) {
         if (match.size() == 3) {
@@ -148,7 +128,7 @@ auto OBECA::Service::tryParseBootstrapFile() -> void
           spdlog::debug("{}: {}", field, value);
 
           if (field == "c") {
-            const std::regex value_regex("^IN (IP.) ([0-9\.]+).*$");
+            const std::regex value_regex("^IN (IP.) ([0-9\\.]+).*$");
             std::smatch cmatch;
             if (std::regex_match(value, cmatch, value_regex)) {
               if (cmatch.size() == 3) {
@@ -188,5 +168,11 @@ auto OBECA::Service::tryParseBootstrapFile() -> void
       _bootstrap_file_parsed = true;
     }
 
+  }
+}
+auto OBECA::Service::remove_expired_files(unsigned max_age) -> void
+{
+  if (_flute_receiver) {
+    _flute_receiver->remove_expired_files(max_age);
   }
 }

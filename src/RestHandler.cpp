@@ -23,6 +23,7 @@
 #include <utility>
 
 #include "spdlog/spdlog.h"
+#include <boost/algorithm/string/join.hpp>
 
 using web::json::value;
 using web::http::methods;
@@ -32,24 +33,20 @@ using web::http::status_codes;
 using web::http::experimental::listener::http_listener;
 using web::http::experimental::listener::http_listener_config;
 
-RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, const std::map<std::string, OBECA::File>& downloaded_files, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<OBECA::Service>>& services )
+OBECA::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<OBECA::Service>>& services )
     : _cfg(cfg)
-    , _files(downloaded_files) 
     , _services(services) 
     , _total_cache_size(total_cache_size) 
 {
-  _base_path = "/tmp/obeca";
-  cfg.lookupValue("gw.cache.base_path", _base_path);
-
   http_listener_config server_config;
   if (url.rfind("https", 0) == 0) {
     server_config.set_ssl_context_callback(
         [&](boost::asio::ssl::context& ctx) {
           std::string cert_file = "/usr/share/obeca/cert.pem";
-          cfg.lookupValue("gw.restful_api.cert", cert_file);
+          cfg.lookupValue("gw.http_server.cert", cert_file);
 
           std::string key_file = "/usr/share/obeca/key.pem";
-          cfg.lookupValue("gw.restful_api.key", key_file);
+          cfg.lookupValue("gw.http_server.key", key_file);
 
           ctx.set_options(boost::asio::ssl::context::default_workarounds);
           ctx.use_certificate_chain_file(cert_file);
@@ -57,11 +54,14 @@ RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, c
         });
   }
 
-  cfg.lookupValue("gw.restful_api.api_key.enabled", _require_bearer_token);
+  cfg.lookupValue("gw.http_server.api_key.enabled", _require_bearer_token);
   if (_require_bearer_token) {
     _api_key = "106cd60-76c8-4c37-944c-df21aa690c1e";
-    cfg.lookupValue("gw.restful_api.api_key.key", _api_key);
+    cfg.lookupValue("gw.http_server.api_key.key", _api_key);
   }
+
+  _api_path = "gw-api";
+  cfg.lookupValue("gw.http_server.api_path", _api_path);
 
   _listener = std::make_unique<http_listener>(
       url, server_config);
@@ -72,10 +72,11 @@ RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, c
   _listener->open().wait();
 }
 
-RestHandler::~RestHandler() = default;
+OBECA::RestHandler::~RestHandler() = default;
 
-void RestHandler::get(http_request message) {
+void OBECA::RestHandler::get(http_request message) {
   spdlog::debug("Received GET request {}", message.to_string() );
+  auto uri = message.relative_uri();
   auto paths = uri::split_path(uri::decode(message.relative_uri().path()));
   if (_require_bearer_token &&
     (message.headers()["Authorization"] != "Bearer " + _api_key)) {
@@ -86,44 +87,67 @@ void RestHandler::get(http_request message) {
   if (paths.empty()) {
     message.reply(status_codes::NotFound);
   } else {
-    if (paths[0] == "files") {
-      std::vector<value> files;
-      for (const auto& [location, file] : _files) {
-        value f;
-        f["filename"] = value(file.location().filename().string());
-        auto file_path = file.location().string();
-        auto sp = file_path.find(_base_path);
-        if (sp != std::string::npos) {
-          file_path.erase(sp, _base_path.size());
+    if (paths[0] == _api_path) {
+      if (paths[1] == "files") {
+        std::vector<value> files;
+        for (const auto& [tmgi, service] : _services) {
+          for (const auto& file : service->fileList()) {
+            value f;
+            f["tmgi"] = value(tmgi);
+            f["access_count"] = value(file->access_count());
+            f["location"] = value(file->meta().content_location);
+            f["content_length"] = value(file->meta().content_length);
+            f["received_at"] = value(file->received_at());
+            f["age"] = value(time(nullptr) - file->received_at());
+            files.push_back(f);
+          }
         }
-        f["location"] = value(file_path);
-        f["content_length"] = value(file.content_length());
-        f["received_at"] = value(file.received_at());
-        f["age"] = value(time(nullptr) - file.received_at());
-        files.push_back(f);
-      }
-      message.reply(status_codes::OK, value::array(files));
-    } else if (paths[0] == "services") {
-      std::vector<value> services;
+        message.reply(status_codes::OK, value::array(files));
+      } else if (paths[1] == "services") {
+        std::vector<value> services;
+        for (const auto& [tmgi, service] : _services) {
+          if (!service->bootstrapped()) continue;
+          value s;
+          s["service_tmgi"] = value(tmgi);
+          s["service_name"] = value(service->serviceName());
+          s["service_description"] = value(service->serviceDescription());
+          s["sdp"] = value(service->sdp());
+          s["m3u"] = value(service->m3u());
+          s["stream_tmgi"] = value(service->streamTmgi());
+          s["stream_type"] = value(service->streamType());
+          s["stream_mcast"] = value(service->streamMcast());
+          services.push_back(s);
+        }
+        message.reply(status_codes::OK, value::array(services));
+      } 
+    } else if (paths[0] == "f") {
       for (const auto& [tmgi, service] : _services) {
-        if (!service->bootstrapped()) continue;
-        value s;
-        s["service_tmgi"] = value(tmgi);
-        s["service_name"] = value(service->serviceName());
-        s["service_description"] = value(service->serviceDescription());
-        s["sdp"] = value(service->sdp());
-        s["m3u"] = value(service->m3u());
-        s["stream_tmgi"] = value(service->streamTmgi());
-        s["stream_type"] = value(service->streamType());
-        s["stream_mcast"] = value(service->streamMcast());
-        services.push_back(s);
+        if (tmgi == paths[1]) {
+          std::vector<std::string> location(&paths[2],&paths[paths.size()]);
+          auto path = boost::algorithm::join(location, "/");
+          spdlog::debug("searching for location {}", path);
+          for (const auto& file : service->fileList()) {
+            auto file_loc = file->meta().content_location;
+            file_loc = file_loc.substr(0, file_loc.find('?'));
+            spdlog::debug("checking {}", file_loc );
+            if (file_loc == path) {
+              spdlog::debug("found!");
+              file->log_access();
+              auto instream = Concurrency::streams::rawptr_stream<uint8_t>::open_istream((uint8_t*)file->buffer(), file->meta().content_length);
+              message.reply(status_codes::OK, instream);
+             
+            }
+          }
+        }
       }
-      message.reply(status_codes::OK, value::array(services));
-    } 
+      message.reply(status_codes::NotFound);
+    } else {
+      message.reply(status_codes::NotFound);
+    }
   }
 }
 
-void RestHandler::put(http_request message) {
+void OBECA::RestHandler::put(http_request message) {
   spdlog::debug("Received PUT request {}", message.to_string() );
 
   if (_require_bearer_token &&

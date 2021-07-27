@@ -16,66 +16,68 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
+
+#pragma once
+
 #include <string>
 #include <thread>
 #include <libconfig.h++>
 #include "cpprest/http_client.h"
 #include "File.h"
+#include "Receiver.h"
 
-
-#pragma once
 namespace OBECA {
-  class FluteReceiver;
-class Service {
-  public:
-    Service(const libconfig::Config& cfg, const std::string& tmgi, const std::string& mcast, unsigned long long tsi, const std::string& iface);
+  class Service {
+    public:
+      Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service);
 
-    virtual ~Service();
+      virtual ~Service();
 
-    std::vector<OBECA::File> fileList();
+      std::vector<std::shared_ptr<LibFlute::File>> fileList();
 
-    void setIsServiceAnnouncement(bool val) { _is_service_announcement = val; };
-    bool isServiceAnnouncement() { return _is_service_announcement; };
+      void setIsServiceAnnouncement(bool val) { _is_service_announcement = val; };
+      bool isServiceAnnouncement() { return _is_service_announcement; };
 
-    bool bootstrapped() { return _bootstrap_file_parsed; };
+      bool bootstrapped() { return _bootstrap_file_parsed; };
 
-    void tryParseBootstrapFile();
+      void tryParseBootstrapFile(std::string str);
 
-    std::string streamType() const  { return _stream_type; };
-    std::string streamTmgi() const { return _stream_tmgi; };
-    void setStreamTmgi(std::string tmgi) { _stream_tmgi = tmgi; };
-    std::string streamMcast() const { return _stream_mcast_addr + ":" + _stream_mcast_port; };
-    unsigned long long streamFluteTsi() const { return _stream_flute_tsi; };
+      std::string streamType() const  { return _stream_type; };
+      std::string streamTmgi() const { return _stream_tmgi; };
+      void setStreamTmgi(std::string tmgi) { _stream_tmgi = tmgi; };
+      std::string streamMcast() const { return _stream_mcast_addr + ":" + _stream_mcast_port; };
+      unsigned long long streamFluteTsi() const { return _stream_flute_tsi; };
 
-    std::string serviceDescription() const { return _service_description; };
-    std::string serviceName() const { return _service_name; };
-    std::string sdp() const { return _sdp; };
-    std::string m3u() const { return _m3u; };
+      std::string serviceDescription() const { return _service_description; };
+      std::string serviceName() const { return _service_name; };
+      std::string sdp() const { return _sdp; };
+      std::string m3u() const { return _m3u; };
 
-  private:
-    const libconfig::Config& _cfg;
+      void remove_expired_files(unsigned max_age);
 
-    std::string _iface;
-    std::string _tmgi;
-    std::string _mcast_addr;
-    std::string _mcast_port;
-    unsigned long long _tsi = 0;
-    std::string _target_directory;
-    std::thread _flute_thread;
-    std::unique_ptr<OBECA::FluteReceiver> _flute_receiver;
+    private:
+      const libconfig::Config& _cfg;
 
-    bool _is_service_announcement = false;
-    bool _bootstrap_file_parsed = false;
+      std::string _iface;
+      std::string _tmgi;
+      std::string _mcast_addr;
+      std::string _mcast_port;
+      unsigned long long _tsi = 0;
+      std::thread _flute_thread;
+      std::unique_ptr<LibFlute::Receiver> _flute_receiver;
 
-    std::string _service_description = "";
-    std::string _service_name = "";
-    std::string _sdp = "";
-    std::string _m3u = "";
+      bool _is_service_announcement = false;
+      bool _bootstrap_file_parsed = false;
 
-    std::string _stream_tmgi = {};
-    std::string _stream_type = "none";
-    std::string _stream_mcast_addr = {};
-    std::string _stream_mcast_port = {};
-    unsigned long long _stream_flute_tsi = 0;
-};
+      std::string _service_description = "";
+      std::string _service_name = "";
+      std::string _sdp = "";
+      std::string _m3u = "";
+
+      std::string _stream_tmgi = {};
+      std::string _stream_type = "none";
+      std::string _stream_mcast_addr = {};
+      std::string _stream_mcast_port = {};
+      unsigned long long _stream_flute_tsi = 0;
+  };
 }
