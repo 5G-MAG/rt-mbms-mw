@@ -18,7 +18,7 @@ sudo pip3 install cpplint
 
 ````
 cd ~
-git clone --recurse-submodules git@github.com:Austrian-Broadcasting-Services/obeca-gateway-process.git
+git clone --recurse-submodules https://github.com/Austrian-Broadcasting-Services/obeca-gateway-process.git
 
 cd obeca-gateway-process
 
@@ -26,7 +26,6 @@ git submodule update
 
 mkdir build && cd build
 ````
-> **_NOTE:_** You need to have a GitHub user with a private/public key pair to clone the repository. For more details on private/public key go to your GitHub account -> Settings -> SSH and GPG keys 
 
 ### 2.2 Build setup
 `` cmake -DCMAKE_INSTALL_PREFIX=/usr -GNinja .. ``
