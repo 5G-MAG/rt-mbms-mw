@@ -1,6 +1,0 @@
-OBECA Gateway Process uses the following open source software:
-
-- MAD_FCL - Open Source ALC and FLUTE libraries
-  Copyright (c) 2003-2007 TUT - Tampere University of Technology
-  main authors/contacts: jani.peltotalo@tut.fi and sami.peltotalo@tut.fi
-  Licensed under GPL-2.0 terms, details at /lib/mad_fcl_v1.7_src/README.TXT
