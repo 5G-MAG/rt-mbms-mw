@@ -18,7 +18,7 @@ sudo pip3 install cpplint
 
 ````
 cd ~
-git clone --recurse-submodules https://github.com/Austrian-Broadcasting-Services/obeca-gateway-process.git
+git clone --recurse-submodules https://github.com/5G-MAG/obeca-gateway-process.git
 
 cd obeca-gateway-process
 
