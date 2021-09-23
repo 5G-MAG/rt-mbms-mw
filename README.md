@@ -1,8 +1,8 @@
 # Installation guide
 
-Installation of the *Gateway Process* consists of 2 steps:
+Installation of the *MBMS Middleware* consists of 2 steps:
 1. Install dependencies
-2. Building the *Gateway Process*
+2. Building the *MBMS Middleware*
 
 ## Step 1: Install dependencies
 ````
@@ -18,9 +18,9 @@ sudo pip3 install cpplint
 
 ````
 cd ~
-git clone --recurse-submodules https://github.com/5G-MAG/obeca-gateway-process.git
+git clone --recurse-submodules https://github.com/5G-MAG/rt-mbms-mw
 
-cd obeca-gateway-process
+cd rt-mbms-mw
 
 git submodule update
 
@@ -39,4 +39,4 @@ Alternatively, to configure a debug build:
 ### 2.4 Installing
 `` sudo ninja install `` 
 
-The application, like the Receive Process, also installs a systemd unit.
+The MBMS Middleware, like the MBMS Modem, also installs a systemd unit.
