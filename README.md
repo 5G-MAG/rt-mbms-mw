@@ -12,7 +12,7 @@ sudo snap install cmake --classic
 sudo pip3 install cpplint
 ````
 
-## Step 2: Building the Gateway Process
+## Step 2: Building the Middleware Process
 
 ### 2.1 Getting the source code
 

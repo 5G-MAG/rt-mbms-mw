@@ -26,8 +26,8 @@ using web::http::http_response;
 
 MBMS_RT::RpRestClient::RpRestClient(const libconfig::Config& cfg)
 {
-  std::string url = "http://localhost:3010/rp-api/";
-//  cfg.lookupValue("rp.restful_api.uri", url);
+  std::string url = "http://localhost:3010/modem-api/";
+  cfg.lookupValue("modem.restful_api.uri", url);
   _client = std::make_unique<http_client>(url);
 }
 

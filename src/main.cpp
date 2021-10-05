@@ -56,7 +56,7 @@ const char *argp_program_bug_address = "5G-MAG Reference Tools <reference-tools@
 static char doc[] = "5G-MAG-RT MBMS Middleware Process";  // NOLINT
 
 static struct argp_option options[] = {  // NOLINT
-    {"config", 'c', "FILE", 0, "Configuration file (default: /etc/obeca.conf)", 0},
+    {"config", 'c', "FILE", 0, "Configuration file (default: /etc/5gmag-rt.conf)", 0},
     {"interface", 'i', "IF", 0, "IP address of the interface to bind flute receivers to (default: 192.168.180.10)", 0},
     {"log-level", 'l', "LEVEL", 0,
      "Log verbosity: 0 = trace, 1 = debug, 2 = info, 3 = warn, 4 = error, 5 = "

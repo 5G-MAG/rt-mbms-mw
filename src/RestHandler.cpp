@@ -40,11 +40,11 @@ MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::strin
   if (url.rfind("https", 0) == 0) {
     server_config.set_ssl_context_callback(
         [&](boost::asio::ssl::context& ctx) {
-          std::string cert_file = "/usr/share/obeca/cert.pem";
-          cfg.lookupValue("gw.http_server.cert", cert_file);
+          std::string cert_file = "/usr/share/5gmag-rt/cert.pem";
+          cfg.lookupValue("mw.http_server.cert", cert_file);
 
-          std::string key_file = "/usr/share/obeca/key.pem";
-          cfg.lookupValue("gw.http_server.key", key_file);
+          std::string key_file = "/usr/share/5gmag-rt/key.pem";
+          cfg.lookupValue("mw.http_server.key", key_file);
 
           ctx.set_options(boost::asio::ssl::context::default_workarounds);
           ctx.use_certificate_chain_file(cert_file);
@@ -52,14 +52,14 @@ MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::strin
         });
   }
 
-  cfg.lookupValue("gw.http_server.api_key.enabled", _require_bearer_token);
+  cfg.lookupValue("mw.http_server.api_key.enabled", _require_bearer_token);
   if (_require_bearer_token) {
     _api_key = "106cd60-76c8-4c37-944c-df21aa690c1e";
-    cfg.lookupValue("gw.http_server.api_key.key", _api_key);
+    cfg.lookupValue("mw.http_server.api_key.key", _api_key);
   }
 
-  _api_path = "gw-api";
-  cfg.lookupValue("gw.http_server.api_path", _api_path);
+  _api_path = "mw-api";
+  cfg.lookupValue("mw.http_server.api_path", _api_path);
 
   _listener = std::make_unique<http_listener>(
       url, server_config);
