@@ -1,5 +1,5 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -14,9 +14,9 @@
 // See the License for the specific language governing permissions and limitations
 // under the License.
 //
-#include "Gateway.h" 
+#include "Middleware.h" 
 
-OBECA::Gateway::Gateway( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url, const std::string& iface)
+MBMS_RT::Middleware::Middleware( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url, const std::string& iface)
   : _rp(cfg)
   , _api(cfg, api_url, _total_cache_size, _services)
   , _tick_interval(1)
@@ -25,13 +25,13 @@ OBECA::Gateway::Gateway( boost::asio::io_service& io_service, const libconfig::C
   , _interface(iface)
   , _io_service(io_service)
 {
-  _cfg.lookupValue("gw.cache.max_total_size", _max_cache_size);
+  _cfg.lookupValue("mw.cache.max_total_size", _max_cache_size);
   _max_cache_size *= 1024 * 1024;
-  _cfg.lookupValue("gw.cache.max_file_age", _max_cache_file_age);
-  _timer.async_wait(boost::bind(&Gateway::tick_handler, this));
+  _cfg.lookupValue("mw.cache.max_file_age", _max_cache_file_age);
+  _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT
 }
 
-void OBECA::Gateway::tick_handler()
+void MBMS_RT::Middleware::tick_handler()
 {
   auto mchs = _rp.getMchInfo();
   _available_services.clear();
@@ -44,7 +44,7 @@ void OBECA::Gateway::tick_handler()
       if (!dest.empty() && is_service_announcement && _services.find(tmgi) == _services.end()) {
         // automatically start receiving the service announcement
         // 26.346 5.2.3.1.1 : the pre-defined TSI value shall be "0". 
-        _services[tmgi] = std::make_unique<OBECA::Service>(_cfg, tmgi, dest, 0 /*TSI*/, _interface, _io_service);
+        _services[tmgi] = std::make_unique<MBMS_RT::Service>(_cfg, tmgi, dest, 0 /*TSI*/, _interface, _io_service);
         _services[tmgi]->setIsServiceAnnouncement(true);
       }
     }
@@ -62,7 +62,7 @@ void OBECA::Gateway::tick_handler()
   for (auto const& [tmgi, service] : _services) {
     // read file lists
     auto files = service->fileList();
-    for (auto file : files) {
+    for (const auto& file : files) {
       //_downloaded_files.insert_or_assign(file.location(), file);
       if (file->meta().content_location == "bootstrap.multipart" && service->isServiceAnnouncement()) {
         if (!service->bootstrapped()) {
@@ -82,7 +82,7 @@ void OBECA::Gateway::tick_handler()
         if (service_available != _available_services.end()) {
           if (_services.find(service_available->first) == _services.end()) {
             service->setStreamTmgi(service_available->first);
-            _services[service_available->first] = std::make_unique<OBECA::Service>(_cfg, service_available->first, service->streamMcast(), service->streamFluteTsi(), _interface, _io_service);
+            _services[service_available->first] = std::make_unique<MBMS_RT::Service>(_cfg, service_available->first, service->streamMcast(), service->streamFluteTsi(), _interface, _io_service);
           }
         }
       }
@@ -91,5 +91,5 @@ void OBECA::Gateway::tick_handler()
   }
 
   _timer.expires_at(_timer.expires_at() + _tick_interval);
-  _timer.async_wait(boost::bind(&Gateway::tick_handler, this));
+  _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT
 }

@@ -1,5 +1,5 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -24,14 +24,14 @@ using web::http::status_codes;
 using web::http::methods;
 using web::http::http_response;
 
-OBECA::RpRestClient::RpRestClient(const libconfig::Config& cfg)
+MBMS_RT::RpRestClient::RpRestClient(const libconfig::Config& cfg)
 {
   std::string url = "http://localhost:3010/rp-api/";
 //  cfg.lookupValue("rp.restful_api.uri", url);
   _client = std::make_unique<http_client>(url);
 }
 
-auto OBECA::RpRestClient::getMchInfo() -> web::json::value
+auto MBMS_RT::RpRestClient::getMchInfo() -> web::json::value
 {
   auto res = web::json::value::array();
   try {

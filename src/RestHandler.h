@@ -1,5 +1,5 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -33,7 +33,7 @@
 #include "File.h"
 #include "Service.h"
 
-namespace OBECA {
+namespace MBMS_RT {
   /**
    *  The RESTful API handler. Supports GET and PUT verbs for SDR parameters, and GET for reception info
    */
@@ -45,7 +45,7 @@ namespace OBECA {
        *  @param cfg Config singleton reference
        *  @param url URL to open the server on
        */
-      RestHandler(const libconfig::Config& cfg, const std::string& url, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<OBECA::Service>>& services );
+      RestHandler(const libconfig::Config& cfg, const std::string& url, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& services );
       /**
        *  Default destructor.
        */
@@ -56,7 +56,7 @@ namespace OBECA {
       void put(web::http::http_request message);
       const libconfig::Config& _cfg;
    //   const std::map<std::string, LibFlute::File>& _files;
-      const std::map<std::string, std::unique_ptr<OBECA::Service>>& _services;
+      const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& _services;
       unsigned _total_cache_size;
 
       std::unique_ptr<web::http::experimental::listener::http_listener> _listener;

@@ -1,5 +1,5 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -20,9 +20,9 @@
  * @brief Contains the program entry point, command line parameter handling, and the main runloop for data processing.
  */
 
-/** \mainpage OBECA - Open Broadcast Edge Cache Applicance, gateway process
+/** \mainpage 5G-MAG Reference Tools - MBMS Middleware
  *
- * This is the documentation for the OBECA gateway process. Please see main.cpp for for the runloop and main processing logic as a starting point.
+ * This is the documentation for the 5G-MAG-RT middleware process. Please see main.cpp for for the runloop and main processing logic as a starting point.
  *
  */
 
@@ -40,7 +40,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/syslog_sink.h"
 
-#include "Gateway.h"
+#include "Middleware.h"
 
 using libconfig::Config;
 using libconfig::FileIOException;
@@ -52,8 +52,8 @@ using std::placeholders::_3;
 
 static void print_version(FILE *stream, struct argp_state *state);
 void (*argp_program_version_hook)(FILE *, struct argp_state *) = print_version;
-const char *argp_program_bug_address = "Austrian Broadcasting Services <obeca@ors.at>";
-static char doc[] = "OBECA Gateway Process";  // NOLINT
+const char *argp_program_bug_address = "5G-MAG Reference Tools <reference-tools@5g-mag.com>";
+static char doc[] = "5G-MAG-RT MBMS Middleware Process";  // NOLINT
 
 static struct argp_option options[] = {  // NOLINT
     {"config", 'c', "FILE", 0, "Configuration file (default: /etc/obeca.conf)", 0},
@@ -67,7 +67,7 @@ static struct argp_option options[] = {  // NOLINT
 /**
  * Holds all options passed on the command line
  */
-struct gw_arguments {
+struct mw_arguments {
   const char *config_file = {};  /**< file path of the config file. */
   const char *flute_interface = {};  /**< file path of the config file. */
   unsigned log_level = 2;        /**< log level */
@@ -77,7 +77,7 @@ struct gw_arguments {
  * Parses the command line options into the arguments struct.
  */
 static auto parse_opt(int key, char *arg, struct argp_state *state) -> error_t {
-  auto arguments = static_cast<struct gw_arguments *>(state->input);
+  auto arguments = static_cast<struct mw_arguments *>(state->input);
   switch (key) {
     case 'c':
       arguments->config_file = arg;
@@ -118,9 +118,9 @@ static Config cfg;  /**< Global configuration object. */
  * @return 0 on clean exit, -1 on failure
  */
 auto main(int argc, char **argv) -> int {
-  struct gw_arguments arguments;
+  struct mw_arguments arguments;
   /* Default values */
-  arguments.config_file = "/etc/obeca.conf";
+  arguments.config_file = "/etc/5gmag-rt.conf";
   arguments.flute_interface= "0.0.0.0";
 
   argp_parse(&argp, argc, argv, 0, nullptr, &arguments);
@@ -138,7 +138,7 @@ auto main(int argc, char **argv) -> int {
   }
 
   // Set up logging
-  std::string ident = "gw";
+  std::string ident = "mw";
   auto syslog_logger = spdlog::syslog_logger_mt("syslog", ident, LOG_PID | LOG_PERROR | LOG_CONS );
 
   spdlog::set_level(
@@ -146,14 +146,14 @@ auto main(int argc, char **argv) -> int {
   spdlog::set_pattern("[%H:%M:%S.%f %z] [%^%l%$] [thr %t] %v");
 
   spdlog::set_default_logger(syslog_logger);
-  spdlog::info("OBECA gw v{}.{}.{} starting up", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+  spdlog::info("5g-mag-rt mw v{}.{}.{} starting up", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 
   std::string uri = "http://0.0.0.0:3020/";
-  cfg.lookupValue("gw.http_server.uri", uri);
+  cfg.lookupValue("mw.http_server.uri", uri);
 
   try {
     boost::asio::io_service io;
-    OBECA::Gateway gw(io, cfg, uri, arguments.flute_interface);
+    MBMS_RT::Middleware mw(io, cfg, uri, arguments.flute_interface);
     io.run();
   } catch (const std::exception& ex) {
     spdlog::error("BUG ALERT: Unhandled exception in main: {}", ex.what());

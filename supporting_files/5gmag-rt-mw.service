@@ -1,11 +1,11 @@
 [Unit]
-Description=gw - OBECA Gateway Process
+Description=5gmag-rt-mw - 5G-MAG Reference Tools: Middleware 
 After=rc-local.service
 Before=getty.target
 
 [Service]
-EnvironmentFile=-/etc/default/obeca
-ExecStart=/usr/bin/gw 
+EnvironmentFile=-/etc/default/5gmag-rt
+ExecStart=/usr/bin/mw 
 Type=idle
 User=ofr
 Group=ofr

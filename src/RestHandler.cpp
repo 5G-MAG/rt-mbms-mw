@@ -1,5 +1,5 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -31,7 +31,7 @@ using web::http::status_codes;
 using web::http::experimental::listener::http_listener;
 using web::http::experimental::listener::http_listener_config;
 
-OBECA::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<OBECA::Service>>& services )
+MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& services )
     : _cfg(cfg)
     , _services(services) 
     , _total_cache_size(total_cache_size) 
@@ -70,9 +70,9 @@ OBECA::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string&
   _listener->open().wait();
 }
 
-OBECA::RestHandler::~RestHandler() = default;
+MBMS_RT::RestHandler::~RestHandler() = default;
 
-void OBECA::RestHandler::get(http_request message) {
+void MBMS_RT::RestHandler::get(http_request message) {
   spdlog::debug("Received GET request {}", message.to_string() );
   auto uri = message.relative_uri();
   auto paths = uri::split_path(uri::decode(message.relative_uri().path()));
@@ -145,7 +145,7 @@ void OBECA::RestHandler::get(http_request message) {
   }
 }
 
-void OBECA::RestHandler::put(http_request message) {
+void MBMS_RT::RestHandler::put(http_request message) {
   spdlog::debug("Received PUT request {}", message.to_string() );
 
   if (_require_bearer_token &&

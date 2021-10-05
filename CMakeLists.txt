@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project (gw VERSION 0.9.0)
+project (mw VERSION 0.9.0)
 
 include(CTest)
 include(FindPkgConfig)
@@ -38,9 +38,9 @@ link_directories(
 
 set(CMAKE_CXX_CLANG_TIDY clang-tidy --format-style=google --checks=clang-diagnostic-*,clang-analyzer-*,-*,bugprone*,modernize*,performance*)
 
-add_executable(gw src/main.cpp src/RpRestClient.cpp src/Service.cpp src/RestHandler.cpp src/Gateway.cpp)
+add_executable(mw src/main.cpp src/RpRestClient.cpp src/Service.cpp src/RestHandler.cpp src/Middleware.cpp)
 
-target_link_libraries( gw
+target_link_libraries( mw
     LINK_PUBLIC
     spdlog::spdlog
     config++
@@ -54,14 +54,13 @@ target_link_libraries( gw
 )
 
 
-install(TARGETS gw DESTINATION bin LIBRARY DESTINATION lib)
-install(FILES supporting_files/obeca DESTINATION /etc/nginx/sites-available/)
-install(FILES supporting_files/gw.service DESTINATION /usr/lib/systemd/system)
+install(TARGETS mw)
+install(FILES supporting_files/5gmag-rt-mw.service DESTINATION /usr/lib/systemd/system)
+install(FILES supporting_files/5gmag-rt.conf DESTINATION /etc)
 
 SET(CPACK_GENERATOR "DEB")
 SET(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "nginx (>= 1.18.0)")
-SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "Austrian Broadcasting Services <obeca@ors.at>")
-SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_SOURCE_DIR}/debian/conffiles;${CMAKE_SOURCE_DIR}/debian/gw.service;")
+SET(CPACK_DEBIAN_PACKAGE_MAINTAINER "5G-MAG Reference Tools <reference-tools@5g-mag.com>")
+SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_SOURCE_DIR}/debian/conffiles")
 
 INCLUDE(CPack)
