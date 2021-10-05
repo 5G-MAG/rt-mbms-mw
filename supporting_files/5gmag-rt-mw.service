@@ -1,5 +1,5 @@
 [Unit]
-Description=5gmag-rt-mw - 5G-MAG Reference Tools: Middleware 
+Description=5gmag-rt-mw - 5G-MAG Reference Tools: MBMS Middleware 
 After=rc-local.service
 Before=getty.target
 
@@ -7,8 +7,8 @@ Before=getty.target
 EnvironmentFile=-/etc/default/5gmag-rt
 ExecStart=/usr/bin/mw 
 Type=idle
-User=ofr
-Group=ofr
+User=fivegmag-rt
+Group=fivegmag-rt
 Restart=always
 StartLimitInterval=2
 StartLimitBurst=20
