@@ -1,5 +1,5 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -31,7 +31,7 @@ using web::http::status_codes;
 using web::http::experimental::listener::http_listener;
 using web::http::experimental::listener::http_listener_config;
 
-OBECA::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<OBECA::Service>>& services )
+MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& services )
     : _cfg(cfg)
     , _services(services) 
     , _total_cache_size(total_cache_size) 
@@ -40,11 +40,11 @@ OBECA::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string&
   if (url.rfind("https", 0) == 0) {
     server_config.set_ssl_context_callback(
         [&](boost::asio::ssl::context& ctx) {
-          std::string cert_file = "/usr/share/obeca/cert.pem";
-          cfg.lookupValue("gw.http_server.cert", cert_file);
+          std::string cert_file = "/usr/share/5gmag-rt/cert.pem";
+          cfg.lookupValue("mw.http_server.cert", cert_file);
 
-          std::string key_file = "/usr/share/obeca/key.pem";
-          cfg.lookupValue("gw.http_server.key", key_file);
+          std::string key_file = "/usr/share/5gmag-rt/key.pem";
+          cfg.lookupValue("mw.http_server.key", key_file);
 
           ctx.set_options(boost::asio::ssl::context::default_workarounds);
           ctx.use_certificate_chain_file(cert_file);
@@ -52,14 +52,14 @@ OBECA::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string&
         });
   }
 
-  cfg.lookupValue("gw.http_server.api_key.enabled", _require_bearer_token);
+  cfg.lookupValue("mw.http_server.api_key.enabled", _require_bearer_token);
   if (_require_bearer_token) {
     _api_key = "106cd60-76c8-4c37-944c-df21aa690c1e";
-    cfg.lookupValue("gw.http_server.api_key.key", _api_key);
+    cfg.lookupValue("mw.http_server.api_key.key", _api_key);
   }
 
-  _api_path = "gw-api";
-  cfg.lookupValue("gw.http_server.api_path", _api_path);
+  _api_path = "mw-api";
+  cfg.lookupValue("mw.http_server.api_path", _api_path);
 
   _listener = std::make_unique<http_listener>(
       url, server_config);
@@ -70,9 +70,9 @@ OBECA::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string&
   _listener->open().wait();
 }
 
-OBECA::RestHandler::~RestHandler() = default;
+MBMS_RT::RestHandler::~RestHandler() = default;
 
-void OBECA::RestHandler::get(http_request message) {
+void MBMS_RT::RestHandler::get(http_request message) {
   spdlog::debug("Received GET request {}", message.to_string() );
   auto uri = message.relative_uri();
   auto paths = uri::split_path(uri::decode(message.relative_uri().path()));
@@ -145,7 +145,7 @@ void OBECA::RestHandler::get(http_request message) {
   }
 }
 
-void OBECA::RestHandler::put(http_request message) {
+void MBMS_RT::RestHandler::put(http_request message) {
   spdlog::debug("Received PUT request {}", message.to_string() );
 
   if (_require_bearer_token &&
