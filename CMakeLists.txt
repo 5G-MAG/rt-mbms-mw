@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project (mw VERSION 0.9.0)
+project (mw VERSION 0.9.1)
 
 include(CTest)
 include(FindPkgConfig)
