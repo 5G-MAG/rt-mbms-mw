@@ -28,10 +28,10 @@ mkdir build && cd build
 ````
 
 ### 2.2 Build setup
-`` cmake -DCMAKE_INSTALL_PREFIX=/usr -GNinja .. ``
+`` cmake -DCMAKE_INSTALL_PREFIX=/usr/local -GNinja .. ``
 
 Alternatively, to configure a debug build:
-`` cmake -DCMAKE_INSTALL_PREFIX=/usr -GNinja -DCMAKE_BUILD_TYPE=Debug .. ``
+`` cmake -DCMAKE_INSTALL_PREFIX=/usr/local -GNinja -DCMAKE_BUILD_TYPE=Debug .. ``
 
 ### 2.3 Building
 `` ninja ``
