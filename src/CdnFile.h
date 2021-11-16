@@ -20,24 +20,17 @@
 #pragma once
 
 #include <string>
-#include <thread>
-#include <libconfig.h++>
-#include "File.h"
-#include "Receiver.h"
-#include "ContentStream.h"
 
 namespace MBMS_RT {
-  class Service {
+  class CdnFile {
     public:
-      Service();
-      Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service);
-      virtual ~Service();
+      CdnFile(size_t length);
+      virtual ~CdnFile();
 
-      void add_name(std::string name, std::string lang);
-
-      void add_and_start_content_stream(std::shared_ptr<ContentStream> s) { _content_streams.push_back(s); s->start(); };
-
+      char* buffer() { return _buffer; };
+      uint32_t length() { return _length; };
     private:
-      std::vector<std::shared_ptr<ContentStream>> _content_streams;
+      char* _buffer = nullptr;
+      size_t _length;
   };
 }

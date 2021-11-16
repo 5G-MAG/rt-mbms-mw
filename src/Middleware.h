@@ -22,8 +22,10 @@
 #include <boost/asio.hpp>
 #include "RpRestClient.h"
 #include "Service.h"
+#include "ServiceAnnouncement.h"
 #include "File.h"
 #include "RestHandler.h"
+#include "CacheManagement.h"
 
 namespace MBMS_RT {
   class Middleware {
@@ -32,12 +34,13 @@ namespace MBMS_RT {
     private:
       void tick_handler();
 
-      unsigned _max_cache_size = 512;
-      unsigned _total_cache_size = 0;
-      unsigned _max_cache_file_age = 30;
 
       MBMS_RT::RpRestClient _rp;
       MBMS_RT::RestHandler _api;
+      MBMS_RT::CacheManagement _cache;
+
+      std::unique_ptr<MBMS_RT::ServiceAnnouncement> _service_announcement = {nullptr};
+
       std::map<std::string, std::string> _available_services;
       std::map<std::string, std::unique_ptr<MBMS_RT::Service>> _services;
       std::map<std::string, std::unique_ptr<MBMS_RT::Service>> _payload_flute_streams;

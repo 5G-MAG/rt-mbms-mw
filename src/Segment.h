@@ -20,24 +20,29 @@
 #pragma once
 
 #include <string>
-#include <thread>
-#include <libconfig.h++>
 #include "File.h"
-#include "Receiver.h"
-#include "ContentStream.h"
+#include "CdnClient.h"
+#include "CdnFile.h"
+#include "ItemSource.h"
 
 namespace MBMS_RT {
-  class Service {
+  class Segment {
     public:
-      Service();
-      Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service);
-      virtual ~Service();
+      Segment(const std::string& content_location, 
+          std::shared_ptr<LibFlute::File> flute_file);
+      virtual ~Segment();
 
-      void add_name(std::string name, std::string lang);
+      char* buffer();
+      uint32_t content_length() const;
+      virtual ItemSource data_source() const;
 
-      void add_and_start_content_stream(std::shared_ptr<ContentStream> s) { _content_streams.push_back(s); s->start(); };
-
+      void set_cdn_client(std::shared_ptr<CdnClient> client) { _cdn_client = client; };
+      void fetch_from_cdn();
     private:
-      std::vector<std::shared_ptr<ContentStream>> _content_streams;
+      std::string _content_location;
+      std::shared_ptr<CdnClient> _cdn_client;
+
+      std::shared_ptr<LibFlute::File> _flute_file;
+      std::shared_ptr<CdnFile> _cdn_file;
   };
 }

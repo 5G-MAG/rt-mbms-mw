@@ -18,16 +18,14 @@
 
 MBMS_RT::Middleware::Middleware( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url, const std::string& iface)
   : _rp(cfg)
-  , _api(cfg, api_url, _total_cache_size, _services)
+  , _cache(cfg, io_service)
+  , _api(cfg, api_url, _cache, &_service_announcement, _services)
   , _tick_interval(1)
   , _timer(io_service, _tick_interval)
   , _cfg(cfg)
   , _interface(iface)
   , _io_service(io_service)
 {
-  _cfg.lookupValue("mw.cache.max_total_size", _max_cache_size);
-  _max_cache_size *= 1024 * 1024;
-  _cfg.lookupValue("mw.cache.max_file_age", _max_cache_file_age);
   _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT
 }
 
@@ -41,11 +39,10 @@ void MBMS_RT::Middleware::tick_handler()
       auto dest = mtch.at("dest").as_string();
       _available_services[tmgi] = dest;
       auto is_service_announcement = std::stoul(tmgi.substr(0,6), nullptr, 16) < 0xF;
-      if (!dest.empty() && is_service_announcement && _services.find(tmgi) == _services.end()) {
+      if (!dest.empty() && is_service_announcement && !_service_announcement ) {
         // automatically start receiving the service announcement
         // 26.346 5.2.3.1.1 : the pre-defined TSI value shall be "0". 
-        _services[tmgi] = std::make_unique<MBMS_RT::Service>(_cfg, tmgi, dest, 0 /*TSI*/, _interface, _io_service);
-        _services[tmgi]->setIsServiceAnnouncement(true);
+        _service_announcement = std::make_unique<MBMS_RT::ServiceAnnouncement>(_cfg, tmgi, dest, 0 /*TSI*/, _interface, _io_service, _cache);
       }
     }
   }
@@ -59,18 +56,9 @@ void MBMS_RT::Middleware::tick_handler()
     }
   }
 
+  _cache.check_file_expiry_and_cache_size();
+#if 0
   for (auto const& [tmgi, service] : _services) {
-    // read file lists
-    auto files = service->fileList();
-    for (const auto& file : files) {
-      //_downloaded_files.insert_or_assign(file.location(), file);
-      if (file->meta().content_location == "bootstrap.multipart" && service->isServiceAnnouncement()) {
-        if (!service->bootstrapped()) {
-          service->tryParseBootstrapFile(file->buffer());
-        }
-      }
-    }
-
     if (service->bootstrapped() && service->streamType() == "FLUTE/UDP") {
       if (_payload_flute_streams.count(service->streamMcast()) == 0) {
         auto mcast_target = service->streamMcast();
@@ -89,6 +77,7 @@ void MBMS_RT::Middleware::tick_handler()
     }
     service->remove_expired_files(_max_cache_file_age);
   }
+#endif
 
   _timer.expires_at(_timer.expires_at() + _tick_interval);
   _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT

@@ -19,25 +19,28 @@
 
 #pragma once
 
-#include <string>
-#include <thread>
 #include <libconfig.h++>
-#include "File.h"
-#include "Receiver.h"
-#include "ContentStream.h"
+#include <boost/asio.hpp>
+#include "Segment.h"
+#include "CacheItems.h"
 
 namespace MBMS_RT {
-  class Service {
+  class CacheManagement {
     public:
-      Service();
-      Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service);
-      virtual ~Service();
+      CacheManagement(const libconfig::Config& cfg, boost::asio::io_service& io_service);
+      virtual ~CacheManagement();
 
-      void add_name(std::string name, std::string lang);
+      void add_item(std::shared_ptr<CacheItem> item) { _cache_items[item->content_location()] = item; };
+      const std::map<std::string, std::shared_ptr<CacheItem>>& item_map() const { return _cache_items; };
 
-      void add_and_start_content_stream(std::shared_ptr<ContentStream> s) { _content_streams.push_back(s); s->start(); };
+      void check_file_expiry_and_cache_size();
+
 
     private:
-      std::vector<std::shared_ptr<ContentStream>> _content_streams;
+      std::map<std::string, std::shared_ptr<CacheItem>> _cache_items; 
+      unsigned _max_cache_size = 512;
+      unsigned _total_cache_size = 0;
+      unsigned _max_cache_file_age = 30;
+      boost::asio::io_service& _io_service;
   };
 }
