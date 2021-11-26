@@ -19,25 +19,21 @@
 
 #include <regex>
 #include "ContentStream.h"
-#include "CdnClient.h"
 #include "CacheItems.h"
+#include "HlsPrimaryPlaylist.h"
 
 #include "spdlog/spdlog.h"
 #include "cpprest/base_uri.h"
 
-using DeliveryProtocol = MBMS_RT::ContentStream::DeliveryProtocol;
-
-MBMS_RT::ContentStream::ContentStream(std::string flute_if, boost::asio::io_service& io_service, CacheManagement& cache)
-  : _5gbc_stream_iface( flute_if )
+MBMS_RT::ContentStream::ContentStream(std::string base, std::string flute_if, boost::asio::io_service& io_service, CacheManagement& cache, DeliveryProtocol protocol, const libconfig::Config& cfg)
+  : _5gbc_stream_iface( std::move(flute_if) )
+  , _cfg(cfg)
+  , _delivery_protocol(protocol)
+  , _base(std::move(base))
   , _io_service(io_service)
   , _cache(cache)
   , _flute_thread{}
 {
-  spdlog::debug("ContentStream created");
-}
-
-MBMS_RT::ContentStream::~ContentStream() {
-  spdlog::debug("ContentStream destroyed");
 }
 
 auto MBMS_RT::ContentStream::configure_5gbc_delivery_from_sdp(const std::string& sdp) -> bool {
@@ -98,6 +94,15 @@ auto MBMS_RT::ContentStream::configure_5gbc_delivery_from_sdp(const std::string&
   return false;
 }
 
+auto MBMS_RT::ContentStream::flute_file_received(std::shared_ptr<LibFlute::File> file) -> void {
+  spdlog::info("ContentStream: {} (TOI {}, MIME type {}) has been received",
+      file->meta().content_location, file->meta().toi, file->meta().content_type);
+  if (file->meta().content_location != "index.m3u8") { // ignore generated manifests
+    _cache.add_item( std::make_shared<CachedFile>(
+          file->meta().content_location, file->received_at(), std::move(file) )
+        );
+  }
+}
 
 auto MBMS_RT::ContentStream::start() -> void {
   spdlog::info("ContentStream starting");
@@ -106,80 +111,30 @@ auto MBMS_RT::ContentStream::start() -> void {
     _flute_thread = std::thread{[&](){
       _flute_receiver = std::make_unique<LibFlute::Receiver>(_5gbc_stream_iface, _5gbc_stream_mcast_addr, 
           atoi(_5gbc_stream_mcast_port.c_str()), _5gbc_stream_flute_tsi, _io_service) ;
-
-      _flute_receiver->register_completion_callback(
-          [&](std::shared_ptr<LibFlute::File> file) {
-          spdlog::info("ContentStream: {} (TOI {}, MIME type {}) has been received",
-              file->meta().content_location, file->meta().toi, file->meta().content_type);
-
-          if (file->meta().content_location == _playlist_path) {
-            spdlog::info("ContentStream: got PLAYLIST at {}", file->meta().content_location);
-            _playlist = std::string(file->buffer(), file->length());
-          } else if (file->meta().content_location == "index.m3u8") {
-           if (!_manifest.size()) {
-            _manifest = std::string(file->buffer(), file->length());
-            spdlog::info("ContentStream: got MANIFEST at {}:\n{}", file->meta().content_location, _manifest);
-            _cache.add_item( std::make_shared<CachedPlaylist>(
-                  "index.m3u8",
-                  0,
-                  [&]() -> const std::string& {
-                    spdlog::info("ContentStream: manifest requested");
-                    return _manifest;
-                  }
-                  ));
-            }
-          } else {
-            spdlog::info("ContentStream: got SEGMENT at {}", file->meta().content_location);
-            auto segment =
-              std::make_shared<Segment>( 
-                  file->meta().content_location,
-                  file );
-
-            if (_cdn_client) {
-              segment->set_cdn_client(_cdn_client);
-            }
-            _segments[file->meta().content_location] = segment;
-
-            _cache.add_item( std::make_shared<CachedSegment>(
-                  file->meta().content_location, file->received_at(), segment )
-                );
-          }
-      });
-
+      _flute_receiver->register_completion_callback(boost::bind(&ContentStream::flute_file_received, this, _1)); //NOLINT
     }};
+  }
+};
+
+auto MBMS_RT::ContentStream::read_master_manifest(const std::string& manifest) -> void
+{
+  if (_delivery_protocol == DeliveryProtocol::HLS) {
+    auto pl = HlsPrimaryPlaylist(manifest, "");
+    if (pl.streams().size() == 1) {
+      auto stream = pl.streams()[0];
+      _playlist_path = stream.uri;
+    } else {
+      spdlog::error("Error: HLS primary playlist for stream contains more than one stream definitions. Ignoring.");
+    }
   }
 }
 
-auto MBMS_RT::ContentStream::set_cdn_endpoint(const std::string& cdn_ept) -> void
+auto MBMS_RT::ContentStream::flute_info() const -> std::string
 {
-  web::uri uri(cdn_ept);
-  web::uri_builder cdn_base(cdn_ept);
-
-  std::string path = uri.path();
-  _playlist_path = path.erase(0,1) + "?" + uri.query();
-  spdlog::info("ContentStream: playlist location is {}", _playlist_path);
-
-  cdn_base.set_path("");
-  cdn_base.set_query("");
-  _cdn_endpoint = cdn_base.to_string(); 
-//  _cdn_endpoint = "http://192.168.188.120/demo-segments/";
-  spdlog::info("ContentStream: setting CDN ept to {}", _cdn_endpoint);
-  
-  _cdn_client = std::make_shared<CdnClient>(_cdn_endpoint);
-
-  _cache.add_item( std::make_shared<CachedPlaylist>(
-        _playlist_path,
-        0,
-        [&]() -> const std::string& {
-          spdlog::info("ContentStream: {} playlist requested", _playlist_path);
-          return _playlist;
-        }
-        ));
-};
-
-auto MBMS_RT::ContentStream::set_delivery_protocol_from_sdp_mime_type(const std::string& mime_type) -> void
-{
-  _delivery_protocol = 
-    ( mime_type == "application/vnd.apple.mpegurl" ? DeliveryProtocol::HLS : 
-      ( mime_type == "application/dash+xml" ? DeliveryProtocol::DASH : DeliveryProtocol::RTP ) );
-};
+  if (_5gbc_stream_type == "none") {
+    return "n/a";
+  } else {
+    return _5gbc_stream_type + ": " + _5gbc_stream_mcast_addr + ":" + _5gbc_stream_mcast_port + 
+      ", TSI " + std::to_string(_5gbc_stream_flute_tsi); 
+  }
+}

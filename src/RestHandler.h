@@ -49,7 +49,7 @@ namespace MBMS_RT {
        */
       RestHandler(const libconfig::Config& cfg, const std::string& url, const CacheManagement& cache,
           const std::unique_ptr<MBMS_RT::ServiceAnnouncement>* service_announcement,
-          const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& services );
+          const std::map<std::string, std::shared_ptr<MBMS_RT::Service>>& services );
       /**
        *  Default destructor.
        */
@@ -62,7 +62,7 @@ namespace MBMS_RT {
       void put(web::http::http_request message);
       const libconfig::Config& _cfg;
    //   const std::map<std::string, LibFlute::File>& _files;
-      const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& _services;
+      const std::map<std::string, std::shared_ptr<Service>>& _services;
       const std::unique_ptr<MBMS_RT::ServiceAnnouncement>* _service_announcement_h = {};
       unsigned _total_cache_size;
 

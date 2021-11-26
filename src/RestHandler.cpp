@@ -16,6 +16,7 @@
 //
 
 #include "RestHandler.h"
+#include "seamless/SeamlessContentStream.h"
 
 #include <memory>
 #include <utility>
@@ -33,7 +34,7 @@ using web::http::experimental::listener::http_listener_config;
 
 MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, const CacheManagement& cache,
     const std::unique_ptr<MBMS_RT::ServiceAnnouncement>* service_announcement,
-    const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& services )
+    const std::map<std::string, std::shared_ptr<Service>>& services )
     : _cfg(cfg)
     , _services(services) 
     , _cache(cache) 
@@ -122,10 +123,55 @@ void MBMS_RT::RestHandler::get(http_request message) {
           f["location"] = value(item.second->content_location());
           f["content_length"] = value(item.second->content_length());
           f["received_at"] = value(item.second->received_at());
-          f["age"] = value(time(nullptr) - item.second->received_at());
+          if (item.second->received_at() == 0) {
+            f["age"] = value(10000);
+          } else {
+            f["age"] = value(time(nullptr) - item.second->received_at());
+          }
           files.push_back(f);
         }
         message.reply(status_codes::OK, value::array(files));
+        return;
+      } else if (paths[1] == "services") {
+        std::vector<value> services;
+        for (const auto& service : _services) {
+          auto s = service.second;
+          value ser;
+
+          std::vector<value> names;
+          for (const auto& name : s->names()) {
+            value n;
+            n["lang"] = value(name.first);
+            n["name"] = value(name.second);
+            names.push_back(n);
+          }
+          ser["names"] = value::array(names);
+          ser["protocol"] = value(s->delivery_protocol_string());
+          ser["manifest_path"] = value(s->manifest_path());
+
+          std::vector<value> streams;
+          for (const auto& stream : s->content_streams()) {
+            value s;
+            s["base"] = value(stream->base());
+            s["type"] = value(stream->stream_type_string());
+            s["flute_info"] = value(stream->flute_info());
+            s["resolution"] = value(stream->resolution());
+            s["codecs"] = value(stream->codecs());
+            s["bandwidth"] = value(stream->bandwidth());
+            s["frame_rate"] = value(stream->frame_rate());
+            s["playlist_path"] = value(stream->playlist_path());
+            if (stream->stream_type() == ContentStream::StreamType::SeamlessSwitching) {
+              s["cdn_ept"] = value(std::dynamic_pointer_cast<SeamlessContentStream>(stream)->cdn_endpoint());
+            } else {
+              s["cdn_ept"] = value("n/a");
+            }
+            streams.push_back(s);
+          }
+          ser["streams"] = value::array(streams);
+
+          services.push_back(ser);
+        }
+        message.reply(status_codes::OK, value::array(services));
         return;
       } else {
         message.reply(status_codes::NotFound);

@@ -1,48 +1,46 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Affero General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU Affero General Public License for more details.
-//
-// You should have received a copy of the GNU Affero General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// Licensed under the License terms and conditions for use, reproduction, and
+// distribution of 5G-MAG software (the “License”).  You may not use this file
+// except in compliance with the License.  You may obtain a copy of the License at
+// https://www.5g-mag.com/reference-tools.  Unless required by applicable law or
+// agreed to in writing, software distributed under the License is distributed on
+// an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+// or implied.
+// 
+// See the License for the specific language governing permissions and limitations
+// under the License.
 //
 
 #include "Segment.h"
+#include <future>
 
 #include "spdlog/spdlog.h"
 
-MBMS_RT::Segment::Segment(const std::string& content_location,
-          std::shared_ptr<LibFlute::File> flute_file)
-  : _content_location( content_location )
-  , _flute_file( flute_file )
+MBMS_RT::Segment::Segment(std::string content_location,
+    int seq, double extinf)
+  : _content_location( std::move(content_location) )
+  , _seq(seq)
+  , _extinf(extinf)
 {
-  spdlog::debug("Segment at {} created", _content_location);
-  int rnd = rand() % 100;
-  if (rnd < 50) {
-    _flute_file = nullptr;
-  }
+  spdlog::debug(" Segment at {} created", _content_location);
 }
 
 MBMS_RT::Segment::~Segment() {
-  spdlog::debug("Segment at {} destroyed", _content_location);
+  spdlog::debug(" Segment at {} destroyed", _content_location);
 }
 
 auto MBMS_RT::Segment::fetch_from_cdn() -> void
 {
   if (_cdn_client) {
+    spdlog::debug("Requesting segment from CDN at {}", _content_location);
     _cdn_client->get(_content_location,
         [&](std::shared_ptr<CdnFile> file) -> void {
         spdlog::debug("Segment at {} received data from CDN", _content_location);
+        _content_received_at = time(nullptr);
         _cdn_file = std::move(file);
         });
   }

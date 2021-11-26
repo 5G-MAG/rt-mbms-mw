@@ -31,9 +31,15 @@
 namespace MBMS_RT {
   class ServiceAnnouncement {
     public:
-      ServiceAnnouncement(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, 
-          std::string iface, boost::asio::io_service& io_service, CacheManagement& cache);
+      typedef std::function<std::shared_ptr<Service>(const std::string& service_id)> get_service_callback_t;
+      typedef std::function<void(const std::string& service_id, std::shared_ptr<Service>)> set_service_callback_t;
 
+      ServiceAnnouncement(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, 
+          std::string iface, boost::asio::io_service& io_service, CacheManagement& cache, bool seamless_switching,
+          get_service_callback_t get_service, set_service_callback_t set_service);
+
+      ServiceAnnouncement(const libconfig::Config& cfg, std::string iface, boost::asio::io_service& io_service, CacheManagement& cache, bool seamless_switching,
+          get_service_callback_t get_service, set_service_callback_t set_service);
       virtual ~ServiceAnnouncement();
 
       struct Item {
@@ -49,11 +55,16 @@ namespace MBMS_RT {
       const std::string& content() const { return _raw_content; };
 
       uint32_t toi() const { return _toi; };
+      void parse_bootstrap(const std::string& str);
 
     private:
-      void parse_bootstrap(const std::string& str);
+
+      get_service_callback_t _get_service;
+      set_service_callback_t _set_service;
+
+      bool _seamless = false;
+
       std::vector<Item> _items;
-      std::map<std::string, Service> _services;
 
       const libconfig::Config& _cfg;
 

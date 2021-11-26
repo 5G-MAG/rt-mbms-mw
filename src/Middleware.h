@@ -26,24 +26,31 @@
 #include "File.h"
 #include "RestHandler.h"
 #include "CacheManagement.h"
+#include "Service.h"
+#include "on_demand/ControlSystemRestClient.h"
 
 namespace MBMS_RT {
   class Middleware {
     public:
       Middleware( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url, const std::string& iface);
+
+      std::shared_ptr<Service> get_service(const std::string& service_id);
+      void set_service(const std::string& service_id, std::shared_ptr<Service> service) { _services[service_id] = service; };
+
     private:
       void tick_handler();
+
+      bool _seamless = false;
+      bool _control_system = false;
 
 
       MBMS_RT::RpRestClient _rp;
       MBMS_RT::RestHandler _api;
       MBMS_RT::CacheManagement _cache;
+      MBMS_RT::ControlSystemRestClient _control;
 
       std::unique_ptr<MBMS_RT::ServiceAnnouncement> _service_announcement = {nullptr};
-
-      std::map<std::string, std::string> _available_services;
-      std::map<std::string, std::unique_ptr<MBMS_RT::Service>> _services;
-      std::map<std::string, std::unique_ptr<MBMS_RT::Service>> _payload_flute_streams;
+      std::map<std::string, std::shared_ptr<Service>> _services;
 
       boost::posix_time::seconds _tick_interval;
       boost::asio::deadline_timer _timer;

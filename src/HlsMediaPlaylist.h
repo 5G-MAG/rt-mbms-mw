@@ -19,28 +19,32 @@
 
 #pragma once
 
-#include <libconfig.h++>
-#include <boost/asio.hpp>
-#include "CacheItems.h"
+#include <string>
+#include <vector>
 
 namespace MBMS_RT {
-  class CacheManagement {
+  class HlsMediaPlaylist {
     public:
-      CacheManagement(const libconfig::Config& cfg, boost::asio::io_service& io_service);
-      virtual ~CacheManagement() = default;
+      HlsMediaPlaylist(const std::string& content);
+      HlsMediaPlaylist() = default;
+      ~HlsMediaPlaylist() = default;
 
-      void add_item(std::shared_ptr<CacheItem> item) { _cache_items[item->content_location()] = item; };
-      void remove_item(const std::string& location) { _cache_items.erase(location); };
-      const std::map<std::string, std::shared_ptr<CacheItem>>& item_map() const { return _cache_items; };
+      struct Segment {
+        std::string uri;
+        int seq;
+        double extinf;
+      };
+      const std::vector<Segment>& segments() const { return _segments; };
+      void add_segment(Segment segment) { _segments.push_back(std::move(segment)); };
 
-      void check_file_expiry_and_cache_size();
+      std::string to_string() const;
 
+      void set_target_duration(int duration) { _targetduration = duration; };
+      int target_duration() const { return _targetduration; };
 
     private:
-      std::map<std::string, std::shared_ptr<CacheItem>> _cache_items; 
-      unsigned _max_cache_size = 512;
-      unsigned _total_cache_size = 0;
-      unsigned _max_cache_file_age = 30;
-      boost::asio::io_service& _io_service;
+      int _version = -1;
+      int _targetduration;
+      std::vector<Segment> _segments = {};
   };
 }

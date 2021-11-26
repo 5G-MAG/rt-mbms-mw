@@ -39,8 +39,11 @@ link_directories(
 set(CMAKE_CXX_CLANG_TIDY clang-tidy --format-style=google --checks=clang-diagnostic-*,clang-analyzer-*,-*,bugprone*,modernize*,performance*)
 
 add_executable(mw src/main.cpp src/RpRestClient.cpp src/Service.cpp src/ServiceAnnouncement.cpp 
-  src/CacheManagement.cpp src/ContentStream.cpp src/RestHandler.cpp src/Middleware.cpp
-  src/Segment.cpp src/CdnClient.cpp src/CdnFile.cpp)
+  src/CacheManagement.cpp src/ContentStream.cpp src/RestHandler.cpp src/Middleware.cpp 
+  src/HlsMediaPlaylist.cpp src/HlsPrimaryPlaylist.cpp
+  src/seamless/CdnClient.cpp src/seamless/CdnFile.cpp src/seamless/SeamlessContentStream.cpp src/seamless/Segment.cpp
+  src/on_demand/ControlSystemRestClient.cpp
+  )
 
 target_link_libraries( mw
     LINK_PUBLIC

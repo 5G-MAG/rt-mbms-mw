@@ -1,5 +1,5 @@
-// 5G-MAG Reference Tools
-// MBMS Middleware Process
+// OBECA - Open Broadcast Edge Cache Appliance
+// Gateway Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -16,33 +16,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
+#include <string>
+#include <libconfig.h++>
+#include "cpprest/http_client.h"
 
 #pragma once
-
-#include <string>
-#include "File.h"
-#include "CdnClient.h"
-#include "CdnFile.h"
-#include "ItemSource.h"
-
 namespace MBMS_RT {
-  class Segment {
-    public:
-      Segment(const std::string& content_location, 
-          std::shared_ptr<LibFlute::File> flute_file);
-      virtual ~Segment();
+class ControlSystemRestClient {
+  public:
+    ControlSystemRestClient(const libconfig::Config& cfg);
+    virtual ~ControlSystemRestClient() = default;
 
-      char* buffer();
-      uint32_t content_length() const;
-      virtual ItemSource data_source() const;
+    web::json::value sendHello(double cinr, const std::vector<std::string>& service_tmgis);
 
-      void set_cdn_client(std::shared_ptr<CdnClient> client) { _cdn_client = client; };
-      void fetch_from_cdn();
-    private:
-      std::string _content_location;
-      std::shared_ptr<CdnClient> _cdn_client;
-
-      std::shared_ptr<LibFlute::File> _flute_file;
-      std::shared_ptr<CdnFile> _cdn_file;
-  };
+  private:
+    std::unique_ptr<web::http::client::http_client> _client;
+    std::string _machine_id = {};
+};
 }

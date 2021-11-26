@@ -21,7 +21,7 @@
 
 #include <libconfig.h++>
 #include <boost/asio.hpp>
-#include "Segment.h"
+#include "seamless/Segment.h"
 #include "ItemSource.h"
 
 namespace MBMS_RT {
@@ -34,6 +34,7 @@ namespace MBMS_RT {
       virtual ~CacheItem() = default;
       
       enum class ItemType {
+        File,
         Segment,
         Playlist,
         Manifest
@@ -53,18 +54,35 @@ namespace MBMS_RT {
             return "GEN";
           case ItemSource::Unavailable:
           default:
-            return "--";
+            return "-";
         }
       }
 
       std::string content_location() const { return _content_location; };
-      unsigned long received_at() const { return _received_at; };
+      virtual unsigned long received_at() const { return _received_at; };
 
     private:
       std::string _content_location;
       unsigned long _received_at;
   };
 
+  class CachedFile : public CacheItem {
+    public:
+      CachedFile(const std::string& content_location, unsigned long received_at,
+          std::shared_ptr<LibFlute::File> file)
+        : CacheItem( content_location, received_at ) 
+        , _file( file ) 
+        {}
+      virtual ~CachedFile() = default;
+
+      virtual ItemType item_type() const { return ItemType::File; };
+      virtual char* buffer() const { return _file->buffer(); };
+      virtual uint32_t content_length() const { return _file->length(); };
+      virtual ItemSource item_source() const { return ItemSource::Broadcast; };
+
+    private:
+      std::shared_ptr<LibFlute::File> _file;
+  };
   class CachedSegment : public CacheItem {
     public:
       CachedSegment(const std::string& content_location, unsigned long received_at,
@@ -78,6 +96,8 @@ namespace MBMS_RT {
       virtual char* buffer() const { return _segment->buffer(); };
       virtual uint32_t content_length() const { return _segment->content_length(); };
       virtual ItemSource item_source() const { return _segment->data_source(); };
+
+      virtual unsigned long received_at() const { return _segment->received_at(); };
 
     private:
       std::shared_ptr<Segment> _segment;
@@ -96,6 +116,7 @@ namespace MBMS_RT {
       virtual char* buffer() const { return (char*)_playlist_cb().c_str(); };
       virtual uint32_t content_length() const { return _playlist_cb().size(); };
       virtual ItemSource item_source() const { return ItemSource::Generated; };
+      virtual unsigned long received_at() const { return time(nullptr); };
 
     private:
       std::function<const std::string&(void)> _playlist_cb;
@@ -114,6 +135,7 @@ namespace MBMS_RT {
       virtual char* buffer() const { return (char*)_playlist_cb().c_str(); };
       virtual uint32_t content_length() const { return _playlist_cb().size(); };
       virtual ItemSource item_source() const { return ItemSource::Generated; };
+      virtual unsigned long received_at() const { return time(nullptr); };
 
     private:
       std::function<const std::string&(void)> _playlist_cb;

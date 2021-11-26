@@ -24,17 +24,10 @@
 MBMS_RT::CacheManagement::CacheManagement(const libconfig::Config& cfg, boost::asio::io_service& io_service)
   : _io_service(io_service)
 {
-  spdlog::debug("CacheManagement created");
   cfg.lookupValue("mw.cache.max_total_size", _max_cache_size);
   _max_cache_size *= 1024 * 1024;
   cfg.lookupValue("mw.cache.max_file_age", _max_cache_file_age);
 }
-
-MBMS_RT::CacheManagement::~CacheManagement() 
-{
-  spdlog::debug("CacheManagement destroyed");
-}
-
 
 auto MBMS_RT::CacheManagement::check_file_expiry_and_cache_size() -> void
 {

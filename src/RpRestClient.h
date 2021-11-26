@@ -28,6 +28,7 @@ namespace MBMS_RT {
       virtual ~RpRestClient() {};
 
       web::json::value getMchInfo();
+      web::json::value getStatus();
 
     private:
       std::unique_ptr<web::http::client::http_client> _client;
