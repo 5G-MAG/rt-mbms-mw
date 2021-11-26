@@ -25,33 +25,41 @@ MBMS_RT::Middleware::Middleware( boost::asio::io_service& io_service, const libc
   , _api(cfg, api_url, _cache, &_service_announcement, _services)
   , _tick_interval(1)
   , _timer(io_service, _tick_interval)
+  , _control_timer(io_service, _control_tick_interval)
   , _cfg(cfg)
   , _interface(iface)
   , _io_service(io_service)
 {
-  _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT
   cfg.lookupValue("mw.seamless_switching.enabled", _seamless);
   if (_seamless) {
     spdlog::info("Seamless switching mode enabled");
   }
-  cfg.lookupValue("mw.seamless_switching.enabled", _control_system);
+  cfg.lookupValue("mw.control_system.enabled", _control_system);
   if (_control_system) {
+    int secs = 10;
+    cfg.lookupValue("mw.control_system.interval", secs);
+    _control_tick_interval = boost::posix_time::seconds(secs);
     spdlog::info("Control System API enabled");
   }
 
   std::string local_sa = "";
-  cfg.lookupValue("mw.bootstrap_from_local_service_announcement", local_sa);
-  if (local_sa != "") { 
-    spdlog::info ("Reading service announcement from file at {}", local_sa);
-    std::ifstream ifs(local_sa);
-    std::string sa_multipart( (std::istreambuf_iterator<char>(ifs) ),
-        (std::istreambuf_iterator<char>()    ) );
+  try {
+    cfg.lookupValue("mw.bootstrap_from_local_service_announcement", local_sa);
+    if (local_sa != "") { 
+      spdlog::info ("Reading service announcement from file at {}", local_sa);
+      std::ifstream ifs(local_sa);
+      std::string sa_multipart( (std::istreambuf_iterator<char>(ifs) ),
+          (std::istreambuf_iterator<char>()    ) );
 
-    auto sa = MBMS_RT::ServiceAnnouncement(_cfg, _interface, _io_service, _cache, _seamless,
-        boost::bind(&Middleware::get_service, this, _1),  //NOLINT
-        boost::bind(&Middleware::set_service, this, _1, _2)); //NOLINT
-    sa.parse_bootstrap(sa_multipart);
-  }
+      auto sa = MBMS_RT::ServiceAnnouncement(_cfg, _interface, _io_service, _cache, _seamless,
+          boost::bind(&Middleware::get_service, this, _1),  //NOLINT
+          boost::bind(&Middleware::set_service, this, _1, _2)); //NOLINT
+      sa.parse_bootstrap(sa_multipart);
+    }
+  } catch(...) {}
+
+  _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT
+  _control_timer.async_wait(boost::bind(&Middleware::control_tick_handler, this)); //NOLINT
 }
 
 void MBMS_RT::Middleware::tick_handler()
@@ -70,23 +78,30 @@ void MBMS_RT::Middleware::tick_handler()
       }
     }
   }
+  _timer.expires_at(_timer.expires_at() + _tick_interval);
+  _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT
+}
 
+void MBMS_RT::Middleware::control_tick_handler()
+{
   if (_control_system) {
-    auto status = _rp.getStatus();
-    auto cinr = status.at("cinr_db").as_double();
-    spdlog::debug("CINR ist {}", cinr);
-    
-    std::vector<std::string> tmgis;
-    auto services = _control.sendHello(cinr, tmgis);
-    for (const auto& ctrl_service : services.as_array()) {
-      spdlog::debug("control system sent service: {}", ctrl_service.serialize());
-    }
+    try {
+      auto status = _rp.getStatus();
+      auto cinr = status.at("cinr_db").as_double();
+      spdlog::debug("CINR ist {}", cinr);
+
+      std::vector<std::string> tmgis;
+      auto services = _control.sendHello(cinr, tmgis);
+      for (const auto& ctrl_service : services.as_array()) {
+        spdlog::debug("control system sent service: {}", ctrl_service.serialize());
+      }
+    } catch(...) {}
   }
 
   _cache.check_file_expiry_and_cache_size();
 
-  _timer.expires_at(_timer.expires_at() + _tick_interval);
-  _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT
+  _control_timer.expires_at(_control_timer.expires_at() + _control_tick_interval);
+  _control_timer.async_wait(boost::bind(&Middleware::control_tick_handler, this)); //NOLINT
 }
 
 auto MBMS_RT::Middleware::get_service(const std::string& service_id) -> std::shared_ptr<Service> 

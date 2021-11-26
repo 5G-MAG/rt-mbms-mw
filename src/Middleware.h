@@ -41,13 +41,17 @@ namespace MBMS_RT {
       void tick_handler();
 
       bool _seamless = false;
-      bool _control_system = false;
 
 
       MBMS_RT::RpRestClient _rp;
       MBMS_RT::RestHandler _api;
       MBMS_RT::CacheManagement _cache;
+
+      bool _control_system = false;
       MBMS_RT::ControlSystemRestClient _control;
+      boost::posix_time::seconds _control_tick_interval = boost::posix_time::seconds(10);
+      boost::asio::deadline_timer _control_timer;
+      void control_tick_handler();
 
       std::unique_ptr<MBMS_RT::ServiceAnnouncement> _service_announcement = {nullptr};
       std::map<std::string, std::shared_ptr<Service>> _services;
