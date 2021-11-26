@@ -64,18 +64,18 @@ auto MBMS_RT::Service::add_and_start_content_stream(std::shared_ptr<ContentStrea
       }
     }
   }
-  _content_streams.push_back(s); 
+  _content_streams[s->playlist_path()] = s; 
   s->start(); 
 
   // recreate the manifest
   HlsPrimaryPlaylist pl;
   for (const auto& stream : _content_streams) {
     HlsPrimaryPlaylist::Stream s{
-      "/"+stream->playlist_path(),
-      stream->resolution(),
-      stream->codecs(),
-      stream->bandwidth(),
-      stream->frame_rate()
+      "/"+stream.second->playlist_path(),
+      stream.second->resolution(),
+      stream.second->codecs(),
+      stream.second->bandwidth(),
+      stream.second->frame_rate()
     };
     pl.add_stream(s);
   }

@@ -31,7 +31,7 @@ namespace MBMS_RT {
   class ContentStream {
     public:
       ContentStream(std::string base, std::string flute_if, boost::asio::io_service& io_service, CacheManagement& cache, DeliveryProtocol protocol, const libconfig::Config& cfg);
-      virtual ~ContentStream() = default;
+      virtual ~ContentStream();
 
       enum class StreamType {
         Basic,

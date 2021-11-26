@@ -34,7 +34,7 @@ namespace MBMS_RT {
   class SeamlessContentStream : public ContentStream{
     public:
       SeamlessContentStream(std::string base, std::string flute_if, boost::asio::io_service& io_service, CacheManagement& cache, DeliveryProtocol protocol, const libconfig::Config& cfg);
-      virtual ~SeamlessContentStream() = default;
+      virtual ~SeamlessContentStream();
 
       virtual StreamType stream_type() const { return StreamType::SeamlessSwitching; };
       virtual std::string stream_type_string() const { return "Seamless Switching"; };
@@ -62,5 +62,7 @@ namespace MBMS_RT {
 
       int _segments_to_keep = 10;
       int _truncate_cdn_playlist_segments = 7;
+      
+      bool _running = true;
   };
 }

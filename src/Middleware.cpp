@@ -78,6 +78,9 @@ void MBMS_RT::Middleware::tick_handler()
       }
     }
   }
+  
+  _cache.check_file_expiry_and_cache_size();
+
   _timer.expires_at(_timer.expires_at() + _tick_interval);
   _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT
 }
@@ -98,7 +101,6 @@ void MBMS_RT::Middleware::control_tick_handler()
     } catch(...) {}
   }
 
-  _cache.check_file_expiry_and_cache_size();
 
   _control_timer.expires_at(_control_timer.expires_at() + _control_tick_interval);
   _control_timer.async_wait(boost::bind(&Middleware::control_tick_handler, this)); //NOLINT

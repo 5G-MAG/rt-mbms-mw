@@ -40,7 +40,7 @@ namespace MBMS_RT {
       void read_master_manifest(const std::string& manifest, const std::string& base_path);
 
       const std::map<std::string, std::string>& names() const { return _names; };
-      const std::vector<std::shared_ptr<ContentStream>>& content_streams() const { return _content_streams; };
+      const std::map<std::string, std::shared_ptr<ContentStream>>& content_streams() const { return _content_streams; };
 
       DeliveryProtocol delivery_protocol() const { return _delivery_protocol; };
       std::string delivery_protocol_string() const { return _delivery_protocol == DeliveryProtocol::HLS ? "HLS" :
@@ -52,7 +52,7 @@ namespace MBMS_RT {
     private:
       CacheManagement& _cache;
       DeliveryProtocol _delivery_protocol;
-      std::vector<std::shared_ptr<ContentStream>> _content_streams;
+      std::map<std::string, std::shared_ptr<ContentStream>> _content_streams;
       std::map<std::string, std::string> _names;
 
       HlsPrimaryPlaylist _hls_primary_playlist;

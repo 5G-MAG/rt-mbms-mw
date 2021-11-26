@@ -31,15 +31,30 @@ MBMS_RT::CacheManagement::CacheManagement(const libconfig::Config& cfg, boost::a
 
 auto MBMS_RT::CacheManagement::check_file_expiry_and_cache_size() -> void
 {
-#if 0
-  std::vector<std::pair<unsigned, const CacheItem&> items_by_age;
-  for (auto it = _cache_items.cbegin(); it != _files.cend();)
-    auto age = time(nullptr) - it->second.received_at;
-    if (age > _max_cache_file_age) {
-      it = _cache_items.erase(it);
+  std::multimap<unsigned, std::string> items_by_age;
+  for (auto it = _cache_items.cbegin(); it != _cache_items.cend();) {
+    spdlog::debug("checking {}", it->second->content_location());
+    if (it->second->received_at() != 0) {
+      auto age = time(nullptr) - it->second->received_at();
+      if (age > _max_cache_file_age) {
+        spdlog::debug("Cache management deleting expired item at {} after {} seconds",
+            it->second->content_location(), age);
+        it = _cache_items.erase(it);
+      } else {
+        items_by_age.insert(std::make_pair(age, it->first));
+        ++it;
+      }
     } else {
-      items_by_age.push_back(std::make_pair(age, item));
+      ++it;
     }
   }
-#endif
+  uint32_t total_size = 0;
+  for (const auto& it : items_by_age) {
+    total_size += _cache_items[it.second]->content_length();
+    if (total_size > _max_cache_size) {
+        spdlog::debug("Cache management deleting item at {} (aged {} secs) due to cache size limit",
+            it.second, it.first);
+        _cache_items.erase(it.second);
+    }
+  }
 }

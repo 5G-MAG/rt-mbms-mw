@@ -152,16 +152,16 @@ void MBMS_RT::RestHandler::get(http_request message) {
           std::vector<value> streams;
           for (const auto& stream : s->content_streams()) {
             value s;
-            s["base"] = value(stream->base());
-            s["type"] = value(stream->stream_type_string());
-            s["flute_info"] = value(stream->flute_info());
-            s["resolution"] = value(stream->resolution());
-            s["codecs"] = value(stream->codecs());
-            s["bandwidth"] = value(stream->bandwidth());
-            s["frame_rate"] = value(stream->frame_rate());
-            s["playlist_path"] = value(stream->playlist_path());
-            if (stream->stream_type() == ContentStream::StreamType::SeamlessSwitching) {
-              s["cdn_ept"] = value(std::dynamic_pointer_cast<SeamlessContentStream>(stream)->cdn_endpoint());
+            s["base"] = value(stream.second->base());
+            s["type"] = value(stream.second->stream_type_string());
+            s["flute_info"] = value(stream.second->flute_info());
+            s["resolution"] = value(stream.second->resolution());
+            s["codecs"] = value(stream.second->codecs());
+            s["bandwidth"] = value(stream.second->bandwidth());
+            s["frame_rate"] = value(stream.second->frame_rate());
+            s["playlist_path"] = value(stream.second->playlist_path());
+            if (stream.second->stream_type() == ContentStream::StreamType::SeamlessSwitching) {
+              s["cdn_ept"] = value(std::dynamic_pointer_cast<SeamlessContentStream>(stream.second)->cdn_endpoint());
             } else {
               s["cdn_ept"] = value("n/a");
             }

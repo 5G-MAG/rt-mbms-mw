@@ -37,6 +37,12 @@ MBMS_RT::SeamlessContentStream::SeamlessContentStream(std::string base, std::str
   _timer.async_wait(boost::bind(&SeamlessContentStream::tick_handler, this)); //NOLINT
 }
 
+MBMS_RT::SeamlessContentStream::~SeamlessContentStream() {
+  spdlog::debug("Destroying seamless content stream at base {}", _base);
+  _running = false;
+  _timer.cancel();
+}
+
 auto MBMS_RT::SeamlessContentStream::flute_file_received(std::shared_ptr<LibFlute::File> file) -> void {
   spdlog::debug("SeamlessContentStream: {} (TOI {}, MIME type {}) has been received",
       file->meta().content_location, file->meta().toi, file->meta().content_type);
@@ -142,6 +148,8 @@ auto MBMS_RT::SeamlessContentStream::handle_playlist( const std::string& content
 
 auto MBMS_RT::SeamlessContentStream::tick_handler() -> void
 {
+  if (!_running) return;
+
   spdlog::debug("Getting playlist from CDN at {}", _playlist_path);
   if (_cdn_client) {
     _cdn_client->get(_playlist_path,

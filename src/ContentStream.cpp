@@ -36,6 +36,15 @@ MBMS_RT::ContentStream::ContentStream(std::string base, std::string flute_if, bo
 {
 }
 
+MBMS_RT::ContentStream::~ContentStream() 
+{
+  spdlog::debug("Destroying content stream at base {}", _base);
+  if (_flute_receiver) {
+    _flute_receiver->stop();
+    _flute_thread.join();
+  }
+}
+
 auto MBMS_RT::ContentStream::configure_5gbc_delivery_from_sdp(const std::string& sdp) -> bool {
   spdlog::debug("ContentStream parsing SDP");
   std::istringstream iss(sdp);
