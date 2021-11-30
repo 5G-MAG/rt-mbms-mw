@@ -14,23 +14,21 @@
 // See the License for the specific language governing permissions and limitations
 // under the License.
 //
-#pragma once
-
 #include <string>
 #include <libconfig.h++>
 #include "cpprest/http_client.h"
 
+#pragma once
 namespace MBMS_RT {
-  class RpRestClient {
-    public:
-      RpRestClient(const libconfig::Config& cfg);
+class ControlSystemRestClient {
+  public:
+    ControlSystemRestClient(const libconfig::Config& cfg);
+    virtual ~ControlSystemRestClient() = default;
 
-      virtual ~RpRestClient() {};
+    web::json::value sendHello(double cinr, const std::vector<std::string>& service_tmgis);
 
-      web::json::value getMchInfo();
-      web::json::value getStatus();
-
-    private:
-      std::unique_ptr<web::http::client::http_client> _client;
-  };
+  private:
+    std::unique_ptr<web::http::client::http_client> _client;
+    std::string _machine_id = {};
+};
 }

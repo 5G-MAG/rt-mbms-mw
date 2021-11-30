@@ -19,16 +19,15 @@
 #include <string>
 #include <libconfig.h++>
 #include "cpprest/http_client.h"
+#include "CdnFile.h"
 
 namespace MBMS_RT {
-  class RpRestClient {
+  class CdnClient {
     public:
-      RpRestClient(const libconfig::Config& cfg);
+      CdnClient(const std::string& base_url);
+      virtual ~CdnClient() = default;
 
-      virtual ~RpRestClient() {};
-
-      web::json::value getMchInfo();
-      web::json::value getStatus();
+      void get(const std::string& path, std::function<void(std::shared_ptr<CdnFile>)> completion_cb);
 
     private:
       std::unique_ptr<web::http::client::http_client> _client;

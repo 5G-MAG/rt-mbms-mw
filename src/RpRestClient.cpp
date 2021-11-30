@@ -44,3 +44,17 @@ auto MBMS_RT::RpRestClient::getMchInfo() -> web::json::value
   } catch (web::http::http_exception ex) { }
   return res;
 }
+
+auto MBMS_RT::RpRestClient::getStatus() -> web::json::value
+{
+  auto res = web::json::value::array();
+  try {
+    _client->request(methods::GET, "status")
+      .then([&res](http_response response) { // NOLINT
+          if (response.status_code() == status_codes::OK) {
+            res = response.extract_json().get();
+          }
+        }).wait();
+  } catch (web::http::http_exception ex) { }
+  return res;
+}

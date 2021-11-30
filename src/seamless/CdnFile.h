@@ -17,20 +17,17 @@
 #pragma once
 
 #include <string>
-#include <libconfig.h++>
-#include "cpprest/http_client.h"
 
 namespace MBMS_RT {
-  class RpRestClient {
+  class CdnFile {
     public:
-      RpRestClient(const libconfig::Config& cfg);
+      CdnFile(size_t length);
+      virtual ~CdnFile();
 
-      virtual ~RpRestClient() {};
-
-      web::json::value getMchInfo();
-      web::json::value getStatus();
-
+      char* buffer() { return _buffer; };
+      uint32_t length() { return _length; };
     private:
-      std::unique_ptr<web::http::client::http_client> _client;
+      char* _buffer = nullptr;
+      size_t _length;
   };
 }
