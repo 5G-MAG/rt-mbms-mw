@@ -67,6 +67,28 @@ private:
   mutable std::unique_ptr<const FileEntryFlute> fileEntry;
 };
 
+struct ReceiverFlute : MBMS_RT::IReceiver {
+  ReceiverFlute(const std::string& iface, const std::string& address,
+      short port, uint64_t tsi,
+      boost::asio::io_service& io_service)
+    : delegate(std::make_unique<LibFlute::Receiver>(iface, address, port, tsi, io_service))
+  {
+  }
+  std::vector<std::shared_ptr<MBMS_RT::IFile>> file_list() override {
+    std::vector<std::shared_ptr<MBMS_RT::IFile>> fileList;
+    for (auto &file : delegate->file_list()) {
+      fileList.push_back(std::make_shared<FileFlute>(file));
+    }
+    return fileList;
+  }
+  void remove_expired_files(unsigned max_age) override {
+    return delegate->remove_expired_files(max_age);
+  }
+
+private:
+  std::unique_ptr<LibFlute::Receiver> delegate;
+};
+
 MBMS_RT::Service::Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service)
   : _cfg(cfg)
   , _tmgi(std::move(tmgi))
@@ -83,7 +105,7 @@ MBMS_RT::Service::Service(const libconfig::Config& cfg, std::string tmgi, const 
   _mcast_port = mcast.substr(delim + 1);
   spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}", _mcast_addr, _mcast_port, _tsi); 
   _flute_thread = std::thread{[&](){
-    _flute_receiver = std::make_unique<LibFlute::Receiver>(_iface, _mcast_addr, atoi(_mcast_port.c_str()), _tsi, io_service) ;
+    _flute_receiver = std::make_unique<ReceiverFlute>(_iface, _mcast_addr, atoi(_mcast_port.c_str()), _tsi, io_service);
   }};
 }
 
@@ -97,13 +119,11 @@ MBMS_RT::Service::~Service() {
 
 auto MBMS_RT::Service::fileList() -> std::vector<std::shared_ptr<IFile>>
 {
-  std::vector<std::shared_ptr<IFile>> fileList;
   if (_flute_receiver) {
-    for (auto &file : _flute_receiver->file_list()) {
-      fileList.push_back(std::make_shared<FileFlute>(file));
-    }
+    return _flute_receiver->file_list();
+  } else {
+    return {};
   }
-  return fileList;
 }
 
 auto MBMS_RT::Service::tryParseBootstrapFile(std::string str) -> void

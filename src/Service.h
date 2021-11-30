@@ -37,6 +37,12 @@ namespace MBMS_RT {
     virtual char *buffer() const = 0;
   };
 
+  struct IReceiver {
+    virtual ~IReceiver() = default;
+    virtual std::vector<std::shared_ptr<MBMS_RT::IFile>> file_list() = 0;
+    virtual void remove_expired_files(unsigned max_age) = 0;
+  };
+
   class Service {
     public:
       Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service);
@@ -74,7 +80,7 @@ namespace MBMS_RT {
       std::string _mcast_port;
       unsigned long long _tsi = 0;
       std::thread _flute_thread;
-      std::unique_ptr<LibFlute::Receiver> _flute_receiver;
+      std::unique_ptr<IReceiver> _flute_receiver;
 
       bool _is_service_announcement = false;
       bool _bootstrap_file_parsed = false;
