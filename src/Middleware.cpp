@@ -14,7 +14,8 @@
 // See the License for the specific language governing permissions and limitations
 // under the License.
 //
-#include "Middleware.h" 
+#include "Middleware.h"
+#include <boost/bind.hpp>
 
 MBMS_RT::Middleware::Middleware( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url, const std::string& iface)
   : _rp(cfg)

@@ -1,7 +1,8 @@
 // 5G-MAG Reference Tools
 // MBMS Middleware Process
 //
-// Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
+// Author: Romain Bouqueau
+// Copyright Motion Spell / GPAC Licensing
 //
 // Licensed under the License terms and conditions for use, reproduction, and
 // distribution of 5G-MAG software (the “License”).  You may not use this file
@@ -20,7 +21,7 @@
 #include <thread>
 #include <libconfig.h++>
 #include "cpprest/http_client.h"
-#include "Receiver.h"
+#include <boost/asio.hpp>
 
 namespace MBMS_RT {
   struct IFile {

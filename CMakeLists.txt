@@ -38,7 +38,7 @@ link_directories(
 
 set(CMAKE_CXX_CLANG_TIDY clang-tidy --format-style=google --checks=clang-diagnostic-*,clang-analyzer-*,-*,bugprone*,modernize*,performance*)
 
-add_executable(mw src/main.cpp src/RpRestClient.cpp src/Service.cpp src/RestHandler.cpp src/Middleware.cpp)
+add_executable(mw src/main.cpp src/RpRestClient.cpp src/Service.cpp src/ServiceFlute.cpp src/RestHandler.cpp src/Middleware.cpp)
 
 target_link_libraries( mw
     LINK_PUBLIC

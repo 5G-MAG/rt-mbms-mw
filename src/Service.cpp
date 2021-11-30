@@ -17,77 +17,12 @@
 
 #include <regex>
 #include "Service.h"
-#include "File.h"
-#include "Receiver.h"
+#include "ServiceFlute.h"
 
+#include <boost/bind.hpp>
 #include "spdlog/spdlog.h"
 #include "gmime/gmime.h" 
 #include "tinyxml2.h"
-
-struct FileEntryFlute : MBMS_RT::IFile::IEntry {
-  FileEntryFlute(const LibFlute::FileDeliveryTable::FileEntry &entry)
-    : delegate(entry)
-  {
-  }
-  std::string content_location() const override {
-    return delegate.content_location;
-  }
-  uint32_t content_length() const override {
-    return delegate.content_length;
-  }
-
-private:
-  const LibFlute::FileDeliveryTable::FileEntry &delegate;
-};
-
-struct FileFlute : MBMS_RT::IFile {
-  FileFlute(std::shared_ptr<LibFlute::File> &file)
-    : delegate(file)
-  {
-  }
-  unsigned access_count() const override {
-    return delegate->access_count();
-  }
-  const MBMS_RT::IFile::IEntry& meta() const override {
-    fileEntry = std::make_unique<const FileEntryFlute>(delegate->meta());
-    return *fileEntry;
-  }
-  unsigned long received_at() const override {
-    return delegate->received_at();
-  }
-  void log_access() const override {
-    return delegate->log_access();
-  }
-  char *buffer() const override {
-    return delegate->buffer();
-  }
-
-private:
-  std::shared_ptr<LibFlute::File> delegate;
-  mutable std::unique_ptr<const FileEntryFlute> fileEntry;
-};
-
-struct ReceiverFlute : MBMS_RT::IReceiver {
-  ReceiverFlute(const std::string& iface, const std::string& address,
-      short port, uint64_t tsi,
-      boost::asio::io_service& io_service)
-    : delegate(std::make_unique<LibFlute::Receiver>(iface, address, port, tsi, io_service))
-  {
-  }
-  std::vector<std::shared_ptr<MBMS_RT::IFile>> file_list() override {
-    std::vector<std::shared_ptr<MBMS_RT::IFile>> fileList;
-    for (auto &file : delegate->file_list()) {
-      fileList.push_back(std::make_shared<FileFlute>(file));
-    }
-    return fileList;
-  }
-  void remove_expired_files(unsigned max_age) override {
-    return delegate->remove_expired_files(max_age);
-  }
-
-private:
-  std::unique_ptr<LibFlute::Receiver> delegate;
-};
 
 MBMS_RT::Service::Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service)
   : _cfg(cfg)
