@@ -17,12 +17,55 @@
 
 #include <regex>
 #include "Service.h"
+#include "File.h"
 #include "Receiver.h"
 
 #include "spdlog/spdlog.h"
 #include "gmime/gmime.h" 
-#include "tinyxml2.h" 
+#include "tinyxml2.h"
 
+struct FileEntryFlute : MBMS_RT::IFile::IEntry {
+  FileEntryFlute(const LibFlute::FileDeliveryTable::FileEntry &entry)
+    : delegate(entry)
+  {
+  }
+  std::string content_location() const override {
+    return delegate.content_location;
+  }
+  uint32_t content_length() const override {
+    return delegate.content_length;
+  }
+
+private:
+  const LibFlute::FileDeliveryTable::FileEntry &delegate;
+};
+
+struct FileFlute : MBMS_RT::IFile {
+  FileFlute(std::shared_ptr<LibFlute::File> &file)
+    : delegate(file)
+  {
+  }
+  unsigned access_count() const override {
+    return delegate->access_count();
+  }
+  const MBMS_RT::IFile::IEntry& meta() const override {
+    fileEntry = std::make_unique<const FileEntryFlute>(delegate->meta());
+    return *fileEntry;
+  }
+  unsigned long received_at() const override {
+    return delegate->received_at();
+  }
+  void log_access() const override {
+    return delegate->log_access();
+  }
+  char *buffer() const override {
+    return delegate->buffer();
+  }
+
+private:
+  std::shared_ptr<LibFlute::File> delegate;
+  mutable std::unique_ptr<const FileEntryFlute> fileEntry;
+};
 
 MBMS_RT::Service::Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service)
   : _cfg(cfg)
@@ -52,13 +95,15 @@ MBMS_RT::Service::~Service() {
   }
 }
 
-auto MBMS_RT::Service::fileList() -> std::vector<std::shared_ptr<LibFlute::File>>
+auto MBMS_RT::Service::fileList() -> std::vector<std::shared_ptr<IFile>>
 {
+  std::vector<std::shared_ptr<IFile>> fileList;
   if (_flute_receiver) {
-    return _flute_receiver->file_list();
-  } else {
-    return std::vector<std::shared_ptr<LibFlute::File>>();
+    for (auto &file : _flute_receiver->file_list()) {
+      fileList.push_back(std::make_shared<FileFlute>(file));
+    }
   }
+  return fileList;
 }
 
 auto MBMS_RT::Service::tryParseBootstrapFile(std::string str) -> void

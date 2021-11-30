@@ -20,17 +20,30 @@
 #include <thread>
 #include <libconfig.h++>
 #include "cpprest/http_client.h"
-#include "File.h"
 #include "Receiver.h"
 
 namespace MBMS_RT {
+  struct IFile {
+    struct IEntry {
+      virtual std::string content_location() const = 0;
+      virtual uint32_t content_length() const = 0;
+    };
+
+    virtual ~IFile() = default;
+    virtual unsigned access_count() const = 0;
+    virtual const IEntry& meta() const = 0;
+    virtual unsigned long received_at() const = 0;
+    virtual void log_access() const = 0;
+    virtual char *buffer() const = 0;
+  };
+
   class Service {
     public:
       Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service);
 
       virtual ~Service();
 
-      std::vector<std::shared_ptr<LibFlute::File>> fileList();
+      std::vector<std::shared_ptr<IFile>> fileList();
 
       void setIsServiceAnnouncement(bool val) { _is_service_announcement = val; };
       bool isServiceAnnouncement() { return _is_service_announcement; };

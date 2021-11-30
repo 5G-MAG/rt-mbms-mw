@@ -93,8 +93,8 @@ void MBMS_RT::RestHandler::get(http_request message) {
             value f;
             f["tmgi"] = value(tmgi);
             f["access_count"] = value(file->access_count());
-            f["location"] = value(file->meta().content_location);
-            f["content_length"] = value(file->meta().content_length);
+            f["location"] = value(file->meta().content_location());
+            f["content_length"] = value(file->meta().content_length());
             f["received_at"] = value(file->received_at());
             f["age"] = value(time(nullptr) - file->received_at());
             files.push_back(f);
@@ -125,13 +125,13 @@ void MBMS_RT::RestHandler::get(http_request message) {
           auto path = boost::algorithm::join(location, "/");
           spdlog::debug("searching for location {}", path);
           for (const auto& file : service->fileList()) {
-            auto file_loc = file->meta().content_location;
+            auto file_loc = file->meta().content_location();
             file_loc = file_loc.substr(0, file_loc.find('?'));
             spdlog::debug("checking {}", file_loc );
             if (file_loc == path) {
               spdlog::debug("found!");
               file->log_access();
-              auto instream = Concurrency::streams::rawptr_stream<uint8_t>::open_istream((uint8_t*)file->buffer(), file->meta().content_length);
+              auto instream = Concurrency::streams::rawptr_stream<uint8_t>::open_istream((uint8_t*)file->buffer(), file->meta().content_length());
               message.reply(status_codes::OK, instream);
              
             }
