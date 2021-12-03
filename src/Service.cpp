@@ -17,12 +17,12 @@
 
 #include <regex>
 #include "Service.h"
-#include "Receiver.h"
+#include "ServiceFlute.h"
 
+#include <boost/bind.hpp>
 #include "spdlog/spdlog.h"
 #include "gmime/gmime.h" 
-#include "tinyxml2.h" 
-
+#include "tinyxml2.h"
 
 MBMS_RT::Service::Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service)
   : _cfg(cfg)
@@ -40,7 +40,7 @@ MBMS_RT::Service::Service(const libconfig::Config& cfg, std::string tmgi, const 
   _mcast_port = mcast.substr(delim + 1);
   spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}", _mcast_addr, _mcast_port, _tsi); 
   _flute_thread = std::thread{[&](){
-    _flute_receiver = std::make_unique<LibFlute::Receiver>(_iface, _mcast_addr, atoi(_mcast_port.c_str()), _tsi, io_service) ;
+    _flute_receiver = std::make_unique<ReceiverFlute>(_iface, _mcast_addr, atoi(_mcast_port.c_str()), _tsi, io_service);
   }};
 }
 
@@ -52,12 +52,12 @@ MBMS_RT::Service::~Service() {
   }
 }
 
-auto MBMS_RT::Service::fileList() -> std::vector<std::shared_ptr<LibFlute::File>>
+auto MBMS_RT::Service::fileList() -> std::vector<std::shared_ptr<IFile>>
 {
   if (_flute_receiver) {
     return _flute_receiver->file_list();
   } else {
-    return std::vector<std::shared_ptr<LibFlute::File>>();
+    return {};
   }
 }
 

@@ -5,12 +5,22 @@ Installation of the *MBMS Middleware* consists of 2 steps:
 2. Building the *MBMS Middleware*
 
 ## Step 1: Install dependencies
+
+### System dependencies
 ````
 sudo apt update
 sudo apt install ssh g++ git libboost-atomic-dev libboost-thread-dev libboost-system-dev libboost-date-time-dev libboost-regex-dev libboost-filesystem-dev libboost-random-dev libboost-chrono-dev libboost-serialization-dev libwebsocketpp-dev openssl libssl-dev ninja-build libspdlog-dev libmbedtls-dev libboost-all-dev libconfig++-dev libsctp-dev libfftw3-dev vim libcpprest-dev libusb-1.0-0-dev net-tools smcroute python-psutil python3-pip clang-tidy gpsd gpsd-clients libgps-dev libgmime-3.0-dev libtinyxml2-dev libtinyxml2-6a
 sudo snap install cmake --classic
 sudo pip3 install cpplint
 ````
+
+### Local dependencies
+
+You'll need to build GPAC for ROUTE support:
+```
+cd /tmp && git clone https://github.com/gpac/gpac.git && cd gpac && git checkout d4cc34d7bf506b1a174e7e85ea8ce3837b5b9749 && ./configure && make -j
+sudo make install
+```
 
 ## Step 2: Building the Middleware Process
 
