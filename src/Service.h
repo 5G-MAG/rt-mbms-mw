@@ -34,8 +34,8 @@ namespace MBMS_RT {
     virtual unsigned access_count() const = 0;
     virtual const IEntry& meta() const = 0;
     virtual unsigned long received_at() const = 0;
-    virtual void log_access() const = 0;
-    virtual char *buffer() const = 0;
+    virtual void log_access() = 0;
+    virtual const char * const buffer() const = 0;
   };
 
   struct IReceiver {

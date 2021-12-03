@@ -50,10 +50,10 @@ struct FileFlute : MBMS_RT::IFile {
   auto received_at() const -> unsigned long override {
     return delegate->received_at();
   }
-  void log_access() const override {
+  void log_access() override {
     return delegate->log_access();
   }
-  auto buffer() const -> char* override {
+  auto buffer() const -> const char *  const override {
     return delegate->buffer();
   }
 
