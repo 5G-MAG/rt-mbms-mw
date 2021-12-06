@@ -1,5 +1,5 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -24,7 +24,7 @@
 #include "tinyxml2.h" 
 
 
-OBECA::Service::Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service)
+MBMS_RT::Service::Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service)
   : _cfg(cfg)
   , _tmgi(std::move(tmgi))
   , _tsi(tsi)
@@ -44,7 +44,7 @@ OBECA::Service::Service(const libconfig::Config& cfg, std::string tmgi, const st
   }};
 }
 
-OBECA::Service::~Service() {
+MBMS_RT::Service::~Service() {
   spdlog::info("Closing service with TMGI {}", _tmgi);
   _flute_receiver.reset();
   if (_flute_thread.joinable()) {
@@ -52,7 +52,7 @@ OBECA::Service::~Service() {
   }
 }
 
-auto OBECA::Service::fileList() -> std::vector<std::shared_ptr<LibFlute::File>>
+auto MBMS_RT::Service::fileList() -> std::vector<std::shared_ptr<LibFlute::File>>
 {
   if (_flute_receiver) {
     return _flute_receiver->file_list();
@@ -61,7 +61,7 @@ auto OBECA::Service::fileList() -> std::vector<std::shared_ptr<LibFlute::File>>
   }
 }
 
-auto OBECA::Service::tryParseBootstrapFile(std::string str) -> void
+auto MBMS_RT::Service::tryParseBootstrapFile(std::string str) -> void
 {
   g_mime_init();
 
@@ -168,7 +168,7 @@ auto OBECA::Service::tryParseBootstrapFile(std::string str) -> void
 
   }
 }
-auto OBECA::Service::remove_expired_files(unsigned max_age) -> void
+auto MBMS_RT::Service::remove_expired_files(unsigned max_age) -> void
 {
   if (_flute_receiver) {
     _flute_receiver->remove_expired_files(max_age);

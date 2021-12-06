@@ -1,5 +1,5 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -14,21 +14,22 @@
 // See the License for the specific language governing permissions and limitations
 // under the License.
 //
+#pragma once
+
 #include <string>
 #include <libconfig.h++>
 #include "cpprest/http_client.h"
 
-#pragma once
-namespace OBECA {
-class RpRestClient {
-  public:
-    RpRestClient(const libconfig::Config& cfg);
+namespace MBMS_RT {
+  class RpRestClient {
+    public:
+      RpRestClient(const libconfig::Config& cfg);
 
-    virtual ~RpRestClient() {};
+      virtual ~RpRestClient() {};
 
-    web::json::value getMchInfo();
+      web::json::value getMchInfo();
 
-  private:
-    std::unique_ptr<web::http::client::http_client> _client;
-};
+    private:
+      std::unique_ptr<web::http::client::http_client> _client;
+  };
 }

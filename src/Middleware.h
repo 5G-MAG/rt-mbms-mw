@@ -1,5 +1,5 @@
-// OBECA - Open Broadcast Edge Cache Appliance
-// Gateway Process
+// 5G-MAG Reference Tools
+// MBMS Middleware Process
 //
 // Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
 //
@@ -25,10 +25,10 @@
 #include "File.h"
 #include "RestHandler.h"
 
-namespace OBECA {
-  class Gateway {
+namespace MBMS_RT {
+  class Middleware {
     public:
-      Gateway( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url, const std::string& iface);
+      Middleware( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url, const std::string& iface);
     private:
       void tick_handler();
 
@@ -36,11 +36,11 @@ namespace OBECA {
       unsigned _total_cache_size = 0;
       unsigned _max_cache_file_age = 30;
 
-      OBECA::RpRestClient _rp;
-      OBECA::RestHandler _api;
+      MBMS_RT::RpRestClient _rp;
+      MBMS_RT::RestHandler _api;
       std::map<std::string, std::string> _available_services;
-      std::map<std::string, std::unique_ptr<OBECA::Service>> _services;
-      std::map<std::string, std::unique_ptr<OBECA::Service>> _payload_flute_streams;
+      std::map<std::string, std::unique_ptr<MBMS_RT::Service>> _services;
+      std::map<std::string, std::unique_ptr<MBMS_RT::Service>> _payload_flute_streams;
 
       boost::posix_time::seconds _tick_interval;
       boost::asio::deadline_timer _timer;

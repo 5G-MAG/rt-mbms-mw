@@ -1,0 +1,17 @@
+[Unit]
+Description=5gmag-rt-mw - 5G-MAG Reference Tools: MBMS Middleware 
+After=rc-local.service
+Before=getty.target
+
+[Service]
+EnvironmentFile=-/etc/default/5gmag-rt
+ExecStart=/usr/bin/mw 
+Type=idle
+User=fivegmag-rt
+Group=fivegmag-rt
+Restart=always
+StartLimitInterval=2
+StartLimitBurst=20
+
+[Install]
+WantedBy=basic.target
