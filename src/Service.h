@@ -1,8 +1,8 @@
 // 5G-MAG Reference Tools
 // MBMS Middleware Process
 //
-// Author: Romain Bouqueau
-// Copyright Motion Spell / GPAC Licensing
+// Author: Klaus Kühnhammer, Romain Bouqueau
+// Copyright (C) 2021 Österreichische Rundfunksender GmbH & Co KG, Motion Spell / GPAC Licensing
 //
 // Licensed under the License terms and conditions for use, reproduction, and
 // distribution of 5G-MAG software (the “License”).  You may not use this file
