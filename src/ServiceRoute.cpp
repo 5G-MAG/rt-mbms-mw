@@ -251,8 +251,10 @@ void ReceiverRoute::remove_expired_files(unsigned max_age) {
 
   std::unique_lock<std::mutex> lock(session->fileEntriesMutex);
   for (auto it=session->fileEntries.cbegin(); it!=session->fileEntries.cend(); ) {
-    if (strstr(it->first.c_str(), "_init.mp4") || strstr(it->first.c_str(), ".mpd"))
+    if (strstr(it->first.c_str(), "_init.mp4") || strstr(it->first.c_str(), ".mpd")) {
+      ++it;
       continue; // init segments and manifest never expire (but can be updated)
+    }
     
     if (it->second.received_at() + max_age < now) {
       session->fileEntries.erase(it->first);
