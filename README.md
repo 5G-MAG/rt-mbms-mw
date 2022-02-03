@@ -1,42 +1,5 @@
-# Installation guide
+# rt-mbms-mw
 
-Installation of the *MBMS Middleware* consists of 2 steps:
-1. Install dependencies
-2. Building the *MBMS Middleware*
+The MBMS Middleware presents the heart of the 5G-MAG Reference Tools. Its main task is to provide the best available content to the (internal or external) application at any time. If available, it combines content from (mobile) broadband, WiFi with the 5G BC content from the MBMS Modem using an advanced decision logic.
 
-## Step 1: Install dependencies
-````
-sudo apt update
-sudo apt install ssh g++ git libboost-atomic-dev libboost-thread-dev libboost-system-dev libboost-date-time-dev libboost-regex-dev libboost-filesystem-dev libboost-random-dev libboost-chrono-dev libboost-serialization-dev libwebsocketpp-dev openssl libssl-dev ninja-build libspdlog-dev libmbedtls-dev libboost-all-dev libconfig++-dev libsctp-dev libfftw3-dev vim libcpprest-dev libusb-1.0-0-dev net-tools smcroute python-psutil python3-pip clang-tidy gpsd gpsd-clients libgps-dev libgmime-3.0-dev libtinyxml2-dev libtinyxml2-6a
-sudo snap install cmake --classic
-sudo pip3 install cpplint
-````
-
-## Step 2: Building the Middleware Process
-
-### 2.1 Getting the source code
-
-````
-cd ~
-git clone --recurse-submodules https://github.com/5G-MAG/rt-mbms-mw
-
-cd rt-mbms-mw
-
-git submodule update
-
-mkdir build && cd build
-````
-
-### 2.2 Build setup
-`` cmake -DCMAKE_INSTALL_PREFIX=/usr -GNinja .. ``
-
-Alternatively, to configure a debug build:
-`` cmake -DCMAKE_INSTALL_PREFIX=/usr -GNinja -DCMAKE_BUILD_TYPE=Debug .. ``
-
-### 2.3 Building
-`` ninja ``
-
-### 2.4 Installing
-`` sudo ninja install `` 
-
-The MBMS Middleware, like the MBMS Modem, also installs a systemd unit.
+**A detailed overview and the installation instructions can be found in our [Wiki](https://github.com/5G-MAG/Documentation-and-Architecture/wiki/MBMS-Middleware).**
