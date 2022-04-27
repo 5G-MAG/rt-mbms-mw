@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 #set project name and version
-project (mw VERSION 0.9.1)
+project (mw VERSION 0.9.2)
 
 # Configure the project for testing with CTest/CDash
 include(CTest)
