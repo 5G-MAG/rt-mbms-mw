@@ -128,7 +128,10 @@ void MBMS_RT::RestHandler::get(http_request message) {
             auto file_loc = file->meta().content_location;
             file_loc = file_loc.substr(0, file_loc.find('?'));
             spdlog::debug("checking {}", file_loc );
-            if (file_loc == path) {
+            bool flute_ffmpeg_enabled = false;
+            _cfg.lookupValue("mw.flute_ffmpeg.enabled", flute_ffmpeg_enabled);
+            std::string target_path = flute_ffmpeg_enabled ? "/" + path : path;
+            if (file_loc == target_path) {
               spdlog::debug("found!");
               file->log_access();
               auto instream = Concurrency::streams::rawptr_stream<uint8_t>::open_istream((uint8_t*)file->buffer(), file->meta().content_length);

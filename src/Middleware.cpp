@@ -64,7 +64,7 @@ void MBMS_RT::Middleware::tick_handler()
     auto files = service->fileList();
     for (const auto& file : files) {
       //_downloaded_files.insert_or_assign(file.location(), file);
-      if (file->meta().content_location == "bootstrap.multipart" && service->isServiceAnnouncement()) {
+      if (file->meta().content_location.find("bootstrap.multipart") != std::string::npos && service->isServiceAnnouncement()) {
         if (!service->bootstrapped()) {
           service->tryParseBootstrapFile(file->buffer());
         }
