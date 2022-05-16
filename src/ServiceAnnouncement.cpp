@@ -26,12 +26,12 @@
 #include "seamless/SeamlessContentStream.h"
 
 #include "spdlog/spdlog.h"
-#include "gmime/gmime.h" 
-#include "tinyxml2.h" 
+#include "gmime/gmime.h"
+#include "tinyxml2.h"
 #include "cpprest/base_uri.h"
 
 
-MBMS_RT::ServiceAnnouncement::ServiceAnnouncement(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, 
+MBMS_RT::ServiceAnnouncement::ServiceAnnouncement(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast,
     unsigned long long tsi, std::string iface, boost::asio::io_service& io_service, CacheManagement& cache, bool seamless_switching,
     get_service_callback_t get_service, set_service_callback_t set_service)
   : _cfg(cfg)
@@ -52,7 +52,7 @@ MBMS_RT::ServiceAnnouncement::ServiceAnnouncement(const libconfig::Config& cfg, 
   }
   _mcast_addr = mcast.substr(0, delim);
   _mcast_port = mcast.substr(delim + 1);
-  spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}", _mcast_addr, _mcast_port, _tsi); 
+  spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}", _mcast_addr, _mcast_port, _tsi);
   _flute_thread = std::thread{[&](){
     _flute_receiver = std::make_unique<LibFlute::Receiver>(_iface, _mcast_addr, atoi(_mcast_port.c_str()), _tsi, io_service) ;
 
@@ -173,8 +173,8 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string& str) -> vo
         doc.Parse(item.content.c_str());
 
         auto bundle = doc.FirstChildElement("bundleDescription");
-        for(auto* usd = bundle->FirstChildElement("userServiceDescription"); 
-            usd != nullptr; 
+        for(auto* usd = bundle->FirstChildElement("userServiceDescription");
+            usd != nullptr;
             usd = usd->NextSiblingElement("userServiceDescription")) {
           auto service_id = usd->Attribute("serviceId");
 
@@ -189,7 +189,9 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string& str) -> vo
           for(auto* name = usd->FirstChildElement("name"); name != nullptr; name = name->NextSiblingElement("name")) {
             auto lang = name->Attribute("lang");
             auto namestr = name->GetText();
-            service->add_name(namestr, lang);
+            if (lang && namestr) {
+              service->add_name(namestr, lang);
+            }
           }
 
           // parse the appService element
@@ -213,8 +215,8 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string& str) -> vo
             }
           }
           auto alternative_content = app_service->FirstChildElement("r12:alternativeContent");
-          for (auto* base_pattern = alternative_content->FirstChildElement("r12:basePattern"); 
-               base_pattern != nullptr; 
+          for (auto* base_pattern = alternative_content->FirstChildElement("r12:basePattern");
+               base_pattern != nullptr;
                base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
             std::string base = base_pattern->GetText();
 
@@ -222,14 +224,14 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string& str) -> vo
             std::shared_ptr<ContentStream> cs;
             if (_seamless) {
               cs = std::make_shared<SeamlessContentStream>(base, _iface, _io_service, _cache, service->delivery_protocol(), _cfg);
-            } else { 
+            } else {
               cs = std::make_shared<ContentStream>(base, _iface, _io_service, _cache, service->delivery_protocol(), _cfg);
             }
             bool have_delivery_method = false;
 
             // Check for 5GBC delivery method elements
-            for(auto* delivery_method = usd->FirstChildElement("deliveryMethod"); 
-                delivery_method != nullptr; 
+            for(auto* delivery_method = usd->FirstChildElement("deliveryMethod");
+                delivery_method != nullptr;
                 delivery_method = delivery_method->NextSiblingElement("deliveryMethod")) {
               auto sdp_uri = delivery_method->Attribute("sessionDescriptionURI");
               auto broadcast_app_service = delivery_method->FirstChildElement("r12:broadcastAppService");
@@ -255,14 +257,14 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string& str) -> vo
                 have_delivery_method = true;
               } else {
                 // Check for identical content entries to find a CDN base pattern
-                for(auto* identical_content = app_service->FirstChildElement("r12:identicalContent"); 
-                    identical_content != nullptr; 
+                for(auto* identical_content = app_service->FirstChildElement("r12:identicalContent");
+                    identical_content != nullptr;
                     identical_content = identical_content->NextSiblingElement("r12:identicalContent")) {
 
                   bool base_matched = false;
                   std::string found_identical_base;
-                  for(auto* base_pattern = identical_content->FirstChildElement("r12:basePattern"); 
-                      base_pattern != nullptr; 
+                  for(auto* base_pattern = identical_content->FirstChildElement("r12:basePattern");
+                      base_pattern != nullptr;
                       base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
                     std::string identical_base = base_pattern->GetText();
                     if (base == identical_base) {
