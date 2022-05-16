@@ -17,7 +17,7 @@
 #include "Middleware.h" 
 #include "spdlog/spdlog.h"
 
-MBMS_RT::Middleware::Middleware( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url, 
+MBMS_RT::Middleware::Middleware( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url,
     const std::string& iface)
   : _rp(cfg)
   , _control(cfg)
@@ -45,7 +45,7 @@ MBMS_RT::Middleware::Middleware( boost::asio::io_service& io_service, const libc
   std::string local_sa = "";
   try {
     cfg.lookupValue("mw.bootstrap_from_local_service_announcement", local_sa);
-    if (local_sa != "") { 
+    if (local_sa != "") {
       spdlog::info ("Reading service announcement from file at {}", local_sa);
       std::ifstream ifs(local_sa);
       std::string sa_multipart( (std::istreambuf_iterator<char>(ifs) ),
@@ -73,12 +73,12 @@ void MBMS_RT::Middleware::tick_handler()
       if (!dest.empty() && is_service_announcement && !_service_announcement ) {
         // automatically start receiving the service announcement
         // 26.346 5.2.3.1.1 : the pre-defined TSI value shall be "0". 
-        _service_announcement = std::make_unique<MBMS_RT::ServiceAnnouncement>(_cfg, tmgi, dest, 0 /*TSI*/, _interface, _io_service, 
+        _service_announcement = std::make_unique<MBMS_RT::ServiceAnnouncement>(_cfg, tmgi, dest, 0 /*TSI*/, _interface, _io_service,
             _cache, _seamless, boost::bind(&Middleware::get_service, this, _1), boost::bind(&Middleware::set_service, this, _1, _2) ); //NOLINT
       }
     }
   }
-  
+
   _cache.check_file_expiry_and_cache_size();
 
   _timer.expires_at(_timer.expires_at() + _tick_interval);
@@ -106,7 +106,7 @@ void MBMS_RT::Middleware::control_tick_handler()
   _control_timer.async_wait(boost::bind(&Middleware::control_tick_handler, this)); //NOLINT
 }
 
-auto MBMS_RT::Middleware::get_service(const std::string& service_id) -> std::shared_ptr<Service> 
+auto MBMS_RT::Middleware::get_service(const std::string& service_id) -> std::shared_ptr<Service>
 {
   if (_services.find(service_id) != _services.end()) {
     return _services[service_id];

@@ -37,8 +37,8 @@ MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::strin
     const std::map<std::string, std::shared_ptr<Service>>& services )
     : _cfg(cfg)
     , _services(services) 
-    , _cache(cache) 
-    , _service_announcement_h(service_announcement) 
+    , _cache(cache)
+    , _service_announcement_h(service_announcement)
 {
   http_listener_config server_config;
   if (url.rfind("https", 0) == 0) {

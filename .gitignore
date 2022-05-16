@@ -41,3 +41,7 @@ tags
 cscope.*
 Session.vim
 .netrwhist
+
+build
+cmake-build-debug
+.idea
