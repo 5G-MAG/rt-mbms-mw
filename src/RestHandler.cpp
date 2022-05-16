@@ -91,7 +91,7 @@ void MBMS_RT::RestHandler::get(http_request message) {
   } else {
     if (paths[0] == _api_path) {
       if (paths[1] == "service_announcement") {
-        if ((*_service_announcement_h).get()) {
+        if (*_service_announcement_h) {
           std::vector<value> items;
           for (const auto& item : (*_service_announcement_h)->items()) {
             if (item.content_type != "application/mbms-envelope+xml") {
