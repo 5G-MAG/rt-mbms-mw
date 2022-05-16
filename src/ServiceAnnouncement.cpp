@@ -68,7 +68,7 @@ MBMS_RT::ServiceAnnouncement::ServiceAnnouncement(const libconfig::Config& cfg, 
       [&](std::shared_ptr<LibFlute::File> file) { //NOLINT
         spdlog::info("{} (TOI {}) has been received",
           file->meta().content_location, file->meta().toi);
-        if (file->meta().content_location == "bootstrap.multipart" && (!_bootstrapped || _toi != file->meta().toi)) {
+        if (file->meta().content_location.find("bootstrap.multipart") != std::string::npos && (!_bootstrapped || _toi != file->meta().toi)) {
           _toi = file->meta().toi;
           _raw_content = std::string(file->buffer());
           parse_bootstrap(file->buffer());
