@@ -1,0 +1,5 @@
+<map id="MBMS_RT::Middleware" name="MBMS_RT::Middleware">
+<area shape="rect" id="node1" title=" " alt="" coords="99,277,265,516"/>
+<area shape="rect" id="node2" href="$classMBMS__RT_1_1RestHandler.html" title="The RESTful API handler." alt="" coords="5,5,169,215"/>
+<area shape="rect" id="node3" href="$classMBMS__RT_1_1RpRestClient.html" title=" " alt="" coords="194,57,362,163"/>
+</map>
