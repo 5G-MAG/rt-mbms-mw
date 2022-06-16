@@ -19,6 +19,7 @@
 #include "Service.h"
 #include "Receiver.h"
 #include "HlsPrimaryPlaylist.h"
+#include "Constants.h"
 
 #include "spdlog/spdlog.h"
 #include "gmime/gmime.h" 
@@ -42,7 +43,7 @@ auto MBMS_RT::Service::read_master_manifest(const std::string& manifest, const s
         _manifest_path,
         0,
         [&]() -> const std::string& {
-          spdlog::info("Service: master manifest requested");
+          spdlog::debug("Service: master manifest requested");
             return _manifest;
           }
         ));
@@ -84,9 +85,9 @@ auto MBMS_RT::Service::add_and_start_content_stream(std::shared_ptr<ContentStrea
 auto MBMS_RT::Service::set_delivery_protocol_from_mime_type(const std::string& mime_type) -> void
 {
   _delivery_protocol = 
-    ( mime_type == "application/vnd.apple.mpegurl" ? DeliveryProtocol::HLS : 
-      ( mime_type == "application/dash+xml" ? DeliveryProtocol::DASH : DeliveryProtocol::RTP ) );
-  spdlog::debug("Setting delivery type {} from MIME type {}", _delivery_protocol == DeliveryProtocol::HLS ? "HLS" : (
+    ( mime_type == ContentTypeConstants::HLS ? DeliveryProtocol::HLS :
+      ( mime_type == ContentTypeConstants::DASH ? DeliveryProtocol::DASH : DeliveryProtocol::RTP ) );
+  spdlog::info("Setting delivery type {} from MIME type {}", _delivery_protocol == DeliveryProtocol::HLS ? "HLS" : (
         _delivery_protocol == DeliveryProtocol::DASH ? "DASH" : "RTP"), mime_type);
 };
 

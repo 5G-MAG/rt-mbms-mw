@@ -27,7 +27,9 @@ namespace MBMS_RT {
       CacheManagement(const libconfig::Config& cfg, boost::asio::io_service& io_service);
       virtual ~CacheManagement() = default;
 
-      void add_item(std::shared_ptr<CacheItem> item) { _cache_items[item->content_location()] = item; };
+      void add_item(std::shared_ptr<CacheItem> item) {
+        _cache_items[item->content_location()] = item;
+      };
       void remove_item(const std::string& location) { _cache_items.erase(location); };
       const std::map<std::string, std::shared_ptr<CacheItem>>& item_map() const { return _cache_items; };
 
@@ -35,7 +37,7 @@ namespace MBMS_RT {
 
 
     private:
-      std::map<std::string, std::shared_ptr<CacheItem>> _cache_items; 
+      std::map<std::string, std::shared_ptr<CacheItem>> _cache_items;
       unsigned _max_cache_size = 512;
       unsigned _total_cache_size = 0;
       unsigned _max_cache_file_age = 30;

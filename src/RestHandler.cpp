@@ -78,7 +78,7 @@ MBMS_RT::RestHandler::~RestHandler() = default;
 
 void MBMS_RT::RestHandler::get(http_request message) {
   auto uri = message.relative_uri();
-        spdlog::info("request for  {}", uri.to_string() );
+        spdlog::debug("request for  {}", uri.to_string() );
   auto paths = uri::split_path(uri::decode(message.relative_uri().path()));
   if (_require_bearer_token &&
     (message.headers()["Authorization"] != "Bearer " + _api_key)) {

@@ -79,7 +79,7 @@ auto MBMS_RT::SeamlessContentStream::set_cdn_endpoint(const std::string& cdn_ept
         _playlist_path,
         0,
         [&]() -> const std::string& {
-          spdlog::info("ContentStream: {} playlist requested", _playlist_path);
+          spdlog::debug("ContentStream: {} playlist requested", _playlist_path);
           return _playlist;
         }
         ));

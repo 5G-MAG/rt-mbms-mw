@@ -24,6 +24,7 @@
 #include "Service.h"
 #include "Receiver.h"
 #include "seamless/SeamlessContentStream.h"
+#include "Constants.h"
 
 #include "spdlog/spdlog.h"
 #include "gmime/gmime.h"
@@ -136,9 +137,9 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string& str) -> vo
     }
   } while (g_mime_part_iter_next(iter));
 
-  // Parse MBMS envelope
+  // Parse MBMS envelope: <metadataEnvelope>
   for (const auto& item : _items) {
-    if (item.content_type == "application/mbms-envelope+xml") {
+    if (item.content_type == ContentTypeConstants::MBMS_ENVELOPE) {
       try {
         tinyxml2::XMLDocument doc;
         doc.Parse(item.content.c_str());
@@ -167,7 +168,7 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string& str) -> vo
 
   // Parse MBMS user service description bundle
   for (const auto& item : _items) {
-    if (item.content_type == "application/mbms-user-service-description+xml") {
+    if (item.content_type == ContentTypeConstants::MBMS_USER_SERVICE_DESCRIPTION) {
       try {
         tinyxml2::XMLDocument doc;
         doc.Parse(item.content.c_str());
@@ -199,6 +200,7 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string& str) -> vo
           service->set_delivery_protocol_from_mime_type(app_service->Attribute("mimeType"));
 
           for (const auto& item : _items) {
+            // item.uri is derived from the Content-Location of each entry in the bootstrap file. For HLS we are looking for the content of the master manifest in the bootstrap file:
             if (item.uri == app_service->Attribute("appServiceDescriptionURI")) {
               web::uri uri(item.uri);
 
@@ -215,74 +217,79 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string& str) -> vo
             }
           }
           auto alternative_content = app_service->FirstChildElement("r12:alternativeContent");
-          for (auto* base_pattern = alternative_content->FirstChildElement("r12:basePattern");
-               base_pattern != nullptr;
-               base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
-            std::string base = base_pattern->GetText();
+          if (alternative_content != nullptr) {
+            for (auto *base_pattern = alternative_content->FirstChildElement("r12:basePattern");
+                 base_pattern != nullptr;
+                 base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
+              std::string base = base_pattern->GetText();
 
-            // create a content stream
-            std::shared_ptr<ContentStream> cs;
-            if (_seamless) {
-              cs = std::make_shared<SeamlessContentStream>(base, _iface, _io_service, _cache, service->delivery_protocol(), _cfg);
-            } else {
-              cs = std::make_shared<ContentStream>(base, _iface, _io_service, _cache, service->delivery_protocol(), _cfg);
-            }
-            bool have_delivery_method = false;
-
-            // Check for 5GBC delivery method elements
-            for(auto* delivery_method = usd->FirstChildElement("deliveryMethod");
-                delivery_method != nullptr;
-                delivery_method = delivery_method->NextSiblingElement("deliveryMethod")) {
-              auto sdp_uri = delivery_method->Attribute("sessionDescriptionURI");
-              auto broadcast_app_service = delivery_method->FirstChildElement("r12:broadcastAppService");
-              std::string broadcast_base_pattern = broadcast_app_service->FirstChildElement("r12:basePattern")->GetText();
-
-              if (broadcast_base_pattern == base) {
-                for (const auto& item : _items) {
-                  if (item.uri == broadcast_base_pattern) {
-                    cs->read_master_manifest(item.content);
-                  }
-                  if (item.content_type == "application/sdp" &&
-                      item.uri == sdp_uri) {
-                    have_delivery_method = cs->configure_5gbc_delivery_from_sdp(item.content);
-                  }
-                }
-              }
-            }
-
-            if (_seamless) {
-              if (!have_delivery_method) {
-                // No 5G broadcast available. Assume the base pattern is a CDN endpoint.
-                std::dynamic_pointer_cast<SeamlessContentStream>(cs)->set_cdn_endpoint(base);
-                have_delivery_method = true;
+              // create a content stream
+              std::shared_ptr<ContentStream> cs;
+              if (_seamless) {
+                cs = std::make_shared<SeamlessContentStream>(base, _iface, _io_service, _cache,
+                                                             service->delivery_protocol(), _cfg);
               } else {
-                // Check for identical content entries to find a CDN base pattern
-                for(auto* identical_content = app_service->FirstChildElement("r12:identicalContent");
-                    identical_content != nullptr;
-                    identical_content = identical_content->NextSiblingElement("r12:identicalContent")) {
+                cs = std::make_shared<ContentStream>(base, _iface, _io_service, _cache, service->delivery_protocol(),
+                                                     _cfg);
+              }
+              bool have_delivery_method = false;
 
-                  bool base_matched = false;
-                  std::string found_identical_base;
-                  for(auto* base_pattern = identical_content->FirstChildElement("r12:basePattern");
-                      base_pattern != nullptr;
-                      base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
-                    std::string identical_base = base_pattern->GetText();
-                    if (base == identical_base) {
-                      base_matched = true;
-                    } else {
-                      found_identical_base = identical_base;
+              // Check for 5GBC delivery method elements
+              for (auto *delivery_method = usd->FirstChildElement("deliveryMethod");
+                   delivery_method != nullptr;
+                   delivery_method = delivery_method->NextSiblingElement("deliveryMethod")) {
+                auto sdp_uri = delivery_method->Attribute("sessionDescriptionURI");
+                auto broadcast_app_service = delivery_method->FirstChildElement("r12:broadcastAppService");
+                std::string broadcast_base_pattern = broadcast_app_service->FirstChildElement(
+                    "r12:basePattern")->GetText();
+
+                if (broadcast_base_pattern == base) {
+                  for (const auto &item: _items) {
+                    if (item.uri == broadcast_base_pattern) {
+                      cs->read_master_manifest(item.content);
+                    }
+                    if (item.content_type == "application/sdp" &&
+                        item.uri == sdp_uri) {
+                      have_delivery_method = cs->configure_5gbc_delivery_from_sdp(item.content);
                     }
                   }
+                }
+              }
 
-                  if (base_matched && found_identical_base.length()) {
-                    std::dynamic_pointer_cast<SeamlessContentStream>(cs)->set_cdn_endpoint(found_identical_base);
+              if (_seamless) {
+                if (!have_delivery_method) {
+                  // No 5G broadcast available. Assume the base pattern is a CDN endpoint.
+                  std::dynamic_pointer_cast<SeamlessContentStream>(cs)->set_cdn_endpoint(base);
+                  have_delivery_method = true;
+                } else {
+                  // Check for identical content entries to find a CDN base pattern
+                  for (auto *identical_content = app_service->FirstChildElement("r12:identicalContent");
+                       identical_content != nullptr;
+                       identical_content = identical_content->NextSiblingElement("r12:identicalContent")) {
+
+                    bool base_matched = false;
+                    std::string found_identical_base;
+                    for (auto *base_pattern = identical_content->FirstChildElement("r12:basePattern");
+                         base_pattern != nullptr;
+                         base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
+                      std::string identical_base = base_pattern->GetText();
+                      if (base == identical_base) {
+                        base_matched = true;
+                      } else {
+                        found_identical_base = identical_base;
+                      }
+                    }
+
+                    if (base_matched && found_identical_base.length()) {
+                      std::dynamic_pointer_cast<SeamlessContentStream>(cs)->set_cdn_endpoint(found_identical_base);
+                    }
                   }
                 }
               }
-            }
 
-            if (have_delivery_method) {
-              service->add_and_start_content_stream(cs);
+              if (have_delivery_method) {
+                service->add_and_start_content_stream(cs);
+              }
             }
           }
 
