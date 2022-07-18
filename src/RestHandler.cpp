@@ -38,6 +38,7 @@ MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::strin
 {
   http_listener_config server_config;
   if (url.rfind("https", 0) == 0) {
+      /*
     server_config.set_ssl_context_callback(
         [&](boost::asio::ssl::context& ctx) {
           std::string cert_file = "/usr/share/5gmag-rt/cert.pem";
@@ -50,6 +51,7 @@ MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::strin
           ctx.use_certificate_chain_file(cert_file);
           ctx.use_private_key_file(key_file, boost::asio::ssl::context::pem);
         });
+        */
   }
 
   cfg.lookupValue("mw.http_server.api_key.enabled", _require_bearer_token);
