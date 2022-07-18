@@ -57,7 +57,7 @@ auto MBMS_RT::Service::fileList() -> std::vector<std::shared_ptr<LibFlute::File>
   if (_flute_receiver) {
     return _flute_receiver->file_list();
   } else {
-    return std::vector<std::shared_ptr<LibFlute::File>>();
+    return {};
   }
 }
 

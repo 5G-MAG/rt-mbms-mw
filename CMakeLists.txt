@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 #set project name and version
-project (mw VERSION 0.9.2)
+project (mw VERSION 0.10.0)
 
 # Configure the project for testing with CTest/CDash
 include(CTest)
@@ -23,6 +23,7 @@ set(CMAKE_CXX_FLAGS_DEBUG_INIT "-Wall -Wextra -Werror -g3")
 set(CMAKE_CXX_FLAGS_RELEASE_INIT "-Wall -O3")
 
 # Find packages and load its package-specific details.
+find_package(Boost REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(cpprestsdk REQUIRED)
 find_package(PkgConfig REQUIRED)
@@ -50,7 +51,7 @@ include_directories(
 configure_file("include/Version.h.in" "Version.h")
 
 # Default value for <LANG>_CLANG_TIDY target property when <LANG> is C, CXX, OBJC or OBJCXX.
-set(CMAKE_CXX_CLANG_TIDY clang-tidy --format-style=google --checks=clang-diagnostic-*,clang-analyzer-*,-*,bugprone*,modernize*,performance*)
+set(CMAKE_CXX_CLANG_TIDY clang-tidy)
 
 # Adds an executable target called mw to be built from the source files listed in the command invocation
 add_executable(mw src/main.cpp src/RpRestClient.cpp src/Service.cpp src/RestHandler.cpp src/Middleware.cpp)
