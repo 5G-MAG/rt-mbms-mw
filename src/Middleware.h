@@ -62,5 +62,7 @@ namespace MBMS_RT {
       const libconfig::Config& _cfg;
       const std::string& _interface;
       boost::asio::io_service& _io_service;
+
+      bool _handle_local_service_announcement();
     };
 };
