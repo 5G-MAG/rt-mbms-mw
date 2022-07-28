@@ -17,6 +17,13 @@
 #include "Middleware.h"
 #include "spdlog/spdlog.h"
 
+/**
+ *
+ * @param io_service
+ * @param cfg
+ * @param api_url
+ * @param iface
+ */
 MBMS_RT::Middleware::Middleware(boost::asio::io_service &io_service, const libconfig::Config &cfg,
                                 const std::string &api_url,
                                 const std::string &iface)
@@ -40,6 +47,10 @@ MBMS_RT::Middleware::Middleware(boost::asio::io_service &io_service, const libco
   _control_timer.async_wait(boost::bind(&Middleware::control_tick_handler, this)); //NOLINT
 }
 
+/**
+ *
+ * @return {bool} Whether a local SA file was used
+ */
 bool MBMS_RT::Middleware::_handle_local_service_announcement() {
   try {
     bool local_service_enabled = false;
@@ -74,6 +85,9 @@ bool MBMS_RT::Middleware::_handle_local_service_announcement() {
   }
 }
 
+/**
+ *
+ */
 void MBMS_RT::Middleware::tick_handler() {
   auto mchs = _rp.getMchInfo();
   for (auto const &mch: mchs.as_array()) {
@@ -102,6 +116,9 @@ void MBMS_RT::Middleware::tick_handler() {
   _timer.async_wait(boost::bind(&Middleware::tick_handler, this)); //NOLINT
 }
 
+/**
+ *
+ */
 void MBMS_RT::Middleware::control_tick_handler() {
   if (_control_system) {
     try {
@@ -122,6 +139,11 @@ void MBMS_RT::Middleware::control_tick_handler() {
   _control_timer.async_wait(boost::bind(&Middleware::control_tick_handler, this)); //NOLINT
 }
 
+/**
+ *
+ * @param {string} service_id
+ * @return
+ */
 auto MBMS_RT::Middleware::get_service(const std::string &service_id) -> std::shared_ptr<Service> {
   if (_services.find(service_id) != _services.end()) {
     return _services[service_id];

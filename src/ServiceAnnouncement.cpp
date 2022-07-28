@@ -52,6 +52,11 @@ MBMS_RT::ServiceAnnouncement::~ServiceAnnouncement() {
   }
 }
 
+/**
+ * Starts the FLUTE receiver at the specified multicast address. Includes a callback function that is called once a file has been received via multicast
+ * Used for receiving a service announcement file via multicast
+ * @param mcast_address
+ */
 auto MBMS_RT::ServiceAnnouncement::start_flute_receiver(const std::string &mcast_address) -> void {
   size_t delim = mcast_address.find(':');
   if (delim == std::string::npos) {
@@ -78,6 +83,10 @@ auto MBMS_RT::ServiceAnnouncement::start_flute_receiver(const std::string &mcast
   }};
 }
 
+/**
+ * Parse the service announcement/bootstrap file
+ * @param str
+ */
 auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string &str) -> void {
 
   // Add all the SA items including their content to _items
@@ -86,14 +95,14 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string &str) -> vo
   // Parse MBMS envelope: <metadataEnvelope>
   for (const auto &item: _items) {
     if (item.content_type == ContentTypeConstants::MBMS_ENVELOPE) {
-      _parseMbmsEnvelope(item);
+      _handleMbmsEnvelope(item);
     }
   }
 
   // Parse MBMS user service description bundle
   for (const auto &item: _items) {
     if (item.content_type == ContentTypeConstants::MBMS_USER_SERVICE_DESCRIPTION) {
-      _parseMbmbsUserServiceDescriptionBundle(item);
+      _handleMbmbsUserServiceDescriptionBundle(item);
     }
   }
 }
@@ -146,7 +155,7 @@ void MBMS_RT::ServiceAnnouncement::_addServiceAnnouncementItems(const std::strin
  * Parses the MBMS envelope
  * @param {MBMS_RT::ServiceAnnouncement::Item} item
  */
-void MBMS_RT::ServiceAnnouncement::_parseMbmsEnvelope(const MBMS_RT::ServiceAnnouncement::Item &item) {
+void MBMS_RT::ServiceAnnouncement::_handleMbmsEnvelope(const MBMS_RT::ServiceAnnouncement::Item &item) {
   try {
     tinyxml2::XMLDocument doc;
     doc.Parse(item.content.c_str());
@@ -173,10 +182,74 @@ void MBMS_RT::ServiceAnnouncement::_parseMbmsEnvelope(const MBMS_RT::ServiceAnno
 }
 
 /**
+ * Creates a new service or finds an existing service for the specified service id
+ * @param usd
+ * @param service_id
+ * @return
+ */
+std::tuple<std::shared_ptr<MBMS_RT::Service>, bool>
+MBMS_RT::ServiceAnnouncement::_registerService(tinyxml2::XMLElement *usd, const std::string &service_id) {
+  // Register a new service if we have not seen this service id before
+
+  bool is_new_service = false;
+  auto service = _get_service(service_id);
+  if (service == nullptr) {
+    service = std::make_shared<Service>(_cache);
+    is_new_service = true;
+  }
+
+  // read the names
+  for (auto *name = usd->FirstChildElement("name"); name != nullptr; name = name->NextSiblingElement("name")) {
+    auto lang = name->Attribute("lang");
+    auto namestr = name->GetText();
+    if (lang && namestr) {
+      service->add_name(namestr, lang);
+    }
+  }
+
+  return {service, is_new_service};
+}
+
+/**
+ * parse the appService element
+ * Spec: Presence of the r12:appService child element of userServiceDescription indicates that the associated MBMS User Service is an application service explicitly linked to the
+ * r12:broadcastAppService and r12:unicastAppService elements under deliveryMethod
+ * @param usd
+ * @param app_service
+ * @param service
+ */
+void MBMS_RT::ServiceAnnouncement::_handleAppService(tinyxml2::XMLElement *app_service,
+                                                     std::shared_ptr<MBMS_RT::Service> service) {
+
+  service->set_delivery_protocol_from_mime_type(app_service->Attribute("mimeType"));
+
+  // Now search for the content that corresponds to appServiceDescriptionURI. For instance appServiceDescriptionURI="http://localhost/watchfolder/manifest.m3u8"
+  // The attribute appServiceDescriptionURI of r12:appService references an Application Service Description which may be a Media Presentation Description fragment corresponding to a unified MPD.
+  for (const auto &item: _items) {
+    // item.uri is derived from the Content-Location of each entry in the bootstrap file. For HLS we are looking for the content of the master manifest in the bootstrap file:
+    if (item.uri == app_service->Attribute("appServiceDescriptionURI")) {
+      web::uri uri(item.uri);
+
+      // remove file, leave only dir
+      const std::string &path = uri.path();
+      size_t spos = path.rfind('/');
+      auto base_path = path.substr(0, spos + 1);
+
+      // make relative path: remove leading /
+      if (base_path[0] == '/') {
+        base_path.erase(0, 1);
+      }
+      service->read_master_manifest(item.content, base_path);
+    }
+  }
+}
+
+/**
  * Parses the MBMS USD
  * @param {MBMS_RT::ServiceAnnouncement::Item} item
  */
-void MBMS_RT::ServiceAnnouncement::_parseMbmbsUserServiceDescriptionBundle(const MBMS_RT::ServiceAnnouncement::Item &item) {
+void
+MBMS_RT::ServiceAnnouncement::_handleMbmbsUserServiceDescriptionBundle(const MBMS_RT::ServiceAnnouncement::Item &item) {
   try {
     tinyxml2::XMLDocument doc;
     doc.Parse(item.content.c_str());
@@ -185,45 +258,15 @@ void MBMS_RT::ServiceAnnouncement::_parseMbmbsUserServiceDescriptionBundle(const
     for (auto *usd = bundle->FirstChildElement("userServiceDescription");
          usd != nullptr;
          usd = usd->NextSiblingElement("userServiceDescription")) {
+
+      // Create a new service
       auto service_id = usd->Attribute("serviceId");
+      auto[service, is_new_service] = _registerService(usd, service_id);
 
-      bool is_new_service = false;
-      auto service = _get_service(service_id);
-      if (service == nullptr) {
-        service = std::make_shared<Service>(_cache);
-        is_new_service = true;
-      }
-
-      // read the names
-      for (auto *name = usd->FirstChildElement("name"); name != nullptr; name = name->NextSiblingElement("name")) {
-        auto lang = name->Attribute("lang");
-        auto namestr = name->GetText();
-        if (lang && namestr) {
-          service->add_name(namestr, lang);
-        }
-      }
-
-      // parse the appService element
+      // Handle the app service element. Will read the master manifest as provided in the SA
       auto app_service = usd->FirstChildElement("r12:appService");
-      service->set_delivery_protocol_from_mime_type(app_service->Attribute("mimeType"));
+      _handleAppService(app_service, service);
 
-      for (const auto &item: _items) {
-        // item.uri is derived from the Content-Location of each entry in the bootstrap file. For HLS we are looking for the content of the master manifest in the bootstrap file:
-        if (item.uri == app_service->Attribute("appServiceDescriptionURI")) {
-          web::uri uri(item.uri);
-
-          // remove file, leave only dir
-          const std::string &path = uri.path();
-          size_t spos = path.rfind('/');
-          auto base_path = path.substr(0, spos + 1);
-
-          // make relative path: remove leading /
-          if (base_path[0] == '/') {
-            base_path.erase(0, 1);
-          }
-          service->read_master_manifest(item.content, base_path);
-        }
-      }
       auto alternative_content = app_service->FirstChildElement("r12:alternativeContent");
       if (alternative_content != nullptr) {
         for (auto *base_pattern = alternative_content->FirstChildElement("r12:basePattern");

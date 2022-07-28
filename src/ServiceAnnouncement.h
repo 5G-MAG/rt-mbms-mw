@@ -20,6 +20,7 @@
 #include <string>
 #include <thread>
 #include <libconfig.h++>
+#include <tinyxml2.h>
 #include "cpprest/http_client.h"
 #include "File.h"
 #include "Receiver.h"
@@ -87,8 +88,13 @@ namespace MBMS_RT {
 
     void _addServiceAnnouncementItems(const std::string &str);
 
-    void _parseMbmsEnvelope(const Item &item);
+    void _handleMbmsEnvelope(const Item &item);
 
-    void _parseMbmbsUserServiceDescriptionBundle(const Item &item);
+    void _handleMbmbsUserServiceDescriptionBundle(const Item &item);
+
+    std::tuple<std::shared_ptr<MBMS_RT::Service>, bool>
+    _registerService(tinyxml2::XMLElement *usd, const std::string &service_id);
+
+    void _handleAppService(tinyxml2::XMLElement *app_service, std::shared_ptr<Service> service);
   };
 }
