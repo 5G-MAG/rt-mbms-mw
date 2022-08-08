@@ -96,5 +96,12 @@ namespace MBMS_RT {
     _registerService(tinyxml2::XMLElement *usd, const std::string &service_id);
 
     void _handleAppService(tinyxml2::XMLElement *app_service, std::shared_ptr<Service> service);
+
+    bool _setupBroadcastDelivery(tinyxml2::XMLElement *usd, std::string base, std::shared_ptr<ContentStream> cs);
+
+    void
+    _setupByAlternativeContentElement(tinyxml2::XMLElement *app_service,
+                                      const std::shared_ptr<MBMS_RT::Service> &service,
+                                      tinyxml2::XMLElement *usd);
   };
 }

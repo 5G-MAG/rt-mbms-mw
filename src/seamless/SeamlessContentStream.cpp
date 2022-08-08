@@ -25,11 +25,11 @@
 #include "spdlog/spdlog.h"
 #include "cpprest/base_uri.h"
 
-MBMS_RT::SeamlessContentStream::SeamlessContentStream(std::string base, std::string flute_if, boost::asio::io_service& io_service, CacheManagement& cache, DeliveryProtocol protocol, const libconfig::Config& cfg)
-  : ContentStream( std::move(base), std::move(flute_if), io_service, cache, protocol, cfg)
-  , _tick_interval(1)
-  , _timer(io_service, _tick_interval)
-{
+MBMS_RT::SeamlessContentStream::SeamlessContentStream(std::string base, std::string flute_if,
+                                                      boost::asio::io_service &io_service, CacheManagement &cache,
+                                                      DeliveryProtocol protocol, const libconfig::Config &cfg)
+    : ContentStream(std::move(base), std::move(flute_if), io_service, cache, protocol, cfg), _tick_interval(1),
+      _timer(io_service, _tick_interval) {
   cfg.lookupValue("mw.cache.max_segments_per_stream", _segments_to_keep);
   cfg.lookupValue("mw.seamless_switching.truncate_cdn_playlist_segments", _truncate_cdn_playlist_segments);
   _timer.async_wait(boost::bind(&SeamlessContentStream::tick_handler, this)); //NOLINT
@@ -43,7 +43,7 @@ MBMS_RT::SeamlessContentStream::~SeamlessContentStream() {
 
 auto MBMS_RT::SeamlessContentStream::flute_file_received(std::shared_ptr<LibFlute::File> file) -> void {
   spdlog::debug("SeamlessContentStream: {} (TOI {}, MIME type {}) has been received",
-      file->meta().content_location, file->meta().toi, file->meta().content_type);
+                file->meta().content_location, file->meta().toi, file->meta().content_type);
 
   if (file->meta().content_location == _playlist_path) {
     spdlog::info("ContentStream: got PLAYLIST at {}", file->meta().content_location);
@@ -56,38 +56,39 @@ auto MBMS_RT::SeamlessContentStream::flute_file_received(std::shared_ptr<LibFlut
   }
 }
 
-auto MBMS_RT::SeamlessContentStream::set_cdn_endpoint(const std::string& cdn_ept) -> void
-{
+auto MBMS_RT::SeamlessContentStream::set_cdn_endpoint(const std::string &cdn_ept) -> void {
   web::uri uri(cdn_ept);
   web::uri_builder cdn_base(cdn_ept);
 
   std::string path = uri.path();
-  _playlist_path = path.erase(0,1) + "?" + uri.query();
+  _playlist_path = path.erase(0, 1);
+  if (uri.query().length() > 0) {
+    _playlist_path += "?" + uri.query();
+  }
   spdlog::debug("ContentStream: playlist location is {}", _playlist_path);
   size_t spos = _playlist_path.rfind('/');
-  _playlist_dir = _playlist_path.substr(0, spos+1);
+  _playlist_dir = _playlist_path.substr(0, spos + 1);
   spdlog::debug("ContentStream: playlist dir is {}", _playlist_dir);
 
   cdn_base.set_path("");
   cdn_base.set_query("");
-  _cdn_endpoint = cdn_base.to_string(); 
-  spdlog::info("ContentStream: setting CDN ept to {}", _cdn_endpoint);
-  
+  _cdn_endpoint = cdn_base.to_string();
+  spdlog::info("ContentStream: setting CDN ept for {} to {}", cdn_ept, _cdn_endpoint);
+
   _cdn_client = std::make_shared<CdnClient>(_cdn_endpoint);
 
-  _cache.add_item( std::make_shared<CachedPlaylist>(
-        _playlist_path,
-        0,
-        [&]() -> const std::string& {
-          spdlog::debug("ContentStream: {} playlist requested", _playlist_path);
-          return _playlist;
-        }
-        ));
+  _cache.add_item(std::make_shared<CachedPlaylist>(
+      _playlist_path,
+      0,
+      [&]() -> const std::string & {
+        spdlog::debug("ContentStream: {} playlist requested", _playlist_path);
+        return _playlist;
+      }
+  ));
 };
 
 
-auto MBMS_RT::SeamlessContentStream::handle_playlist( const std::string& content, ItemSource source) -> void
-{
+auto MBMS_RT::SeamlessContentStream::handle_playlist(const std::string &content, ItemSource source) -> void {
   auto playlist = MBMS_RT::HlsMediaPlaylist(content);
   int seq = 0;
   double extinf = 0;
@@ -99,12 +100,12 @@ auto MBMS_RT::SeamlessContentStream::handle_playlist( const std::string& content
   int idx = 0;
 
   const std::lock_guard<std::mutex> lock(_segments_mutex);
-  for (const auto& segment : playlist.segments()) {
+  for (const auto &segment: playlist.segments()) {
     spdlog::debug("segment: seq {}, extinf {}, uri {}", segment.seq, segment.extinf, segment.uri);
     if (_segments.find(segment.seq) == _segments.end()) {
       std::string full_uri = _playlist_dir + segment.uri;
       auto seg =
-        std::make_shared<Segment>(full_uri, segment.seq, segment.extinf);
+          std::make_shared<Segment>(full_uri, segment.seq, segment.extinf);
       if (_cdn_client) {
         seg->set_cdn_client(_cdn_client);
       }
@@ -117,9 +118,9 @@ auto MBMS_RT::SeamlessContentStream::handle_playlist( const std::string& content
 
       _segments[segment.seq] = seg;
 
-      _cache.add_item( std::make_shared<CachedSegment>(
-            full_uri, 0, seg )
-          );
+      _cache.add_item(std::make_shared<CachedSegment>(
+          full_uri, 0, seg)
+      );
     }
     if (idx++ > count) {
       break;
@@ -132,29 +133,29 @@ auto MBMS_RT::SeamlessContentStream::handle_playlist( const std::string& content
     _cache.remove_item(seg.mapped()->uri());
   }
   HlsMediaPlaylist pl;
-  pl.set_target_duration(playlist.target_duration());  // [TODO] this will fail when targetdurations change or do not match
-  for (const auto& seg : _segments) {
+  pl.set_target_duration(
+      playlist.target_duration());  // [TODO] this will fail when targetdurations change or do not match
+  for (const auto &seg: _segments) {
     HlsMediaPlaylist::Segment s{
-      seg.second->uri(),
-      seg.second->seq(),
-      seg.second->extinf(),
+        seg.second->uri(),
+        seg.second->seq(),
+        seg.second->extinf(),
     };
     pl.add_segment(s);
   }
   _playlist = pl.to_string();
 }
 
-auto MBMS_RT::SeamlessContentStream::tick_handler() -> void
-{
+auto MBMS_RT::SeamlessContentStream::tick_handler() -> void {
   if (!_running) return;
 
   spdlog::debug("Getting playlist from CDN at {}", _playlist_path);
   if (_cdn_client) {
     _cdn_client->get(_playlist_path,
-        [&](std::shared_ptr<CdnFile> file) -> void { //NOLINT
-        spdlog::debug("Playlist received from CDN");
-            handle_playlist(std::string(file->buffer(), file->length()), MBMS_RT::ItemSource::CDN);
-        });
+                     [&](std::shared_ptr<CdnFile> file) -> void { //NOLINT
+                       spdlog::debug("Playlist received from CDN");
+                       handle_playlist(std::string(file->buffer(), file->length()), MBMS_RT::ItemSource::CDN);
+                     });
   }
   _timer.expires_at(_timer.expires_at() + _tick_interval);
   _timer.async_wait(boost::bind(&SeamlessContentStream::tick_handler, this)); //NOLINT

@@ -22,7 +22,7 @@ Content-Location: file:///envelope.xml
         validUntil="2051-10-05T10:59:43Z"
         version="1"/>  
   <item contentType="application/vnd.apple.mpegurl"
-        metadataURI="http://localhost:3333/hls/manifest.m3u8"
+        metadataURI="http://localhost:3333/watchfolder/hls/manifest.m3u8"
         validFrom="2021-10-12T10:59:43Z"
         validUntil="2051-10-05T10:59:43Z"
         version="1"/>  
@@ -63,19 +63,19 @@ Content-Location: file:///TMGI-0x1009f165.m3u8
 
 #EXTM3U
 #EXT-X-VERSION:6
-#EXT-X-STREAM-INF:BANDWIDTH=2305600,RESOLUTION=1280x720,CODECS="avc1.64001f,mp4a.40.2"
+#EXT-X-STREAM-INF:BANDWIDTH=2305600,RESOLUTION=1280x720,FRAME-RATE=25.000,CODECS="avc1.64001f,mp4a.40.2"
 stream_0.m3u8
 
 --++++++++++++++++++++++++Rohde&Schwarz-BSCC++++++++++++++++++++++++--
 Content-Type: application/vnd.apple.mpegurl
 Content-Transfer-Encoding: 7bit
-Content-Location: http://localhost:3333/hls/manifest.m3u8
+Content-Location: http://localhost:3333/watchfolder/hls/manifest.m3u8
 
 #EXTM3U
 #EXT-X-VERSION:6
-#EXT-X-STREAM-INF:BANDWIDTH=2305600,RESOLUTION=1280x720,CODECS="avc1.64001f,mp4a.40.2"
+#EXT-X-STREAM-INF:BANDWIDTH=2305600,RESOLUTION=1280x720,FRAME-RATE=25.000,CODECS="avc1.64001f,mp4a.40.2"
 stream_0.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=1205600,RESOLUTION=960x540,CODECS="avc1.64001f,mp4a.40.2"
+#EXT-X-STREAM-INF:BANDWIDTH=1205600,RESOLUTION=960x540,FRAME-RATE=25.000,CODECS="avc1.64001f,mp4a.40.2"
 stream_1.m3u8
 
 
@@ -114,19 +114,19 @@ Content-Location: file:///usdBundle.xml
         <r12:serviceArea>2</r12:serviceArea>
       </r12:broadcastAppService>
       <r12:unicastAppService>
-        <r12:basePattern>http://localhost:3333/hls/stream0.m3u8</r12:basePattern>
+        <r12:basePattern>http://localhost:3333/watchfolder/hls/stream_0.m3u8</r12:basePattern>
       </r12:unicastAppService>
       <sv:delimiter>0</sv:delimiter>
     </deliveryMethod>
-    <r12:appService appServiceDescriptionURI="http://localhost:3333/hls/manifest.m3u8"
+    <r12:appService appServiceDescriptionURI="http://localhost:3333/watchfolder/hls/manifest.m3u8"
                     mimeType="application/vnd.apple.mpegurl">
       <r12:alternativeContent>
         <r12:basePattern>file:///TMGI-0x1009f165.m3u8</r12:basePattern>
-        <r12:basePattern>http://localhost:3333/hls/stream1.m3u8</r12:basePattern>
+        <r12:basePattern>http://localhost:3333/watchfolder/hls/stream_1.m3u8</r12:basePattern>
       </r12:alternativeContent>
       <r12:identicalContent>
         <r12:basePattern>file:///TMGI-0x1009f165.m3u8</r12:basePattern>
-        <r12:basePattern>http://localhost:3333/hls/stream0.m3u8</r12:basePattern>
+        <r12:basePattern>http://localhost:3333/watchfolder/hls/stream_0.m3u8</r12:basePattern>
       </r12:identicalContent>
     </r12:appService>
     <r9:schedule>

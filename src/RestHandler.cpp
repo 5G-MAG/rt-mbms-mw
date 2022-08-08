@@ -177,40 +177,6 @@ void MBMS_RT::RestHandler::get(http_request message) {
         message.reply(status_codes::NotFound);
         return;
       }
-#if 0
-      if (paths[1] == "files") {
-        std::vector<value> files;
-        for (const auto& [tmgi, service] : _services) {
-          for (const auto& file : service->fileList()) {
-            value f;
-            f["tmgi"] = value(tmgi);
-            f["access_count"] = value(file->access_count());
-            f["location"] = value(file->meta().content_location);
-            f["content_length"] = value(file->meta().content_length);
-            f["received_at"] = value(file->received_at());
-            f["age"] = value(time(nullptr) - file->received_at());
-            files.push_back(f);
-          }
-        }
-        message.reply(status_codes::OK, value::array(files));
-      } else if (paths[1] == "services") {
-        std::vector<value> services;
-        for (const auto& [tmgi, service] : _services) {
-          if (!service->bootstrapped()) continue;
-          value s;
-          s["service_tmgi"] = value(tmgi);
-          s["service_name"] = value(service->serviceName());
-          s["service_description"] = value(service->serviceDescription());
-          s["sdp"] = value(service->sdp());
-          s["m3u"] = value(service->m3u());
-          s["stream_tmgi"] = value(service->streamTmgi());
-          s["stream_type"] = value(service->streamType());
-          s["stream_mcast"] = value(service->streamMcast());
-          services.push_back(s);
-        }
-        message.reply(status_codes::OK, value::array(services));
-      } 
-#endif
     } else {
       auto path = uri.to_string().erase(0,1); // remove leading /
       spdlog::debug("checking for file at path {}", path );

@@ -211,7 +211,7 @@ MBMS_RT::ServiceAnnouncement::_registerService(tinyxml2::XMLElement *usd, const 
 }
 
 /**
- * parse the appService element
+ * Parse the appService element
  * Spec: Presence of the r12:appService child element of userServiceDescription indicates that the associated MBMS User Service is an application service explicitly linked to the
  * r12:broadcastAppService and r12:unicastAppService elements under deliveryMethod
  * @param usd
@@ -245,6 +245,104 @@ void MBMS_RT::ServiceAnnouncement::_handleAppService(tinyxml2::XMLElement *app_s
 }
 
 /**
+ * Check for broadcastAppService element and setup delivery method if available
+ * @param usd
+ * @param base
+ * @param cs
+ * @return
+ */
+bool MBMS_RT::ServiceAnnouncement::_setupBroadcastDelivery(tinyxml2::XMLElement *usd, std::string base,
+                                                           std::shared_ptr<MBMS_RT::ContentStream> cs) {
+  bool broadcast_delivery_available = false;
+  for (auto *delivery_method = usd->FirstChildElement("deliveryMethod");
+       delivery_method != nullptr;
+       delivery_method = delivery_method->NextSiblingElement("deliveryMethod")) {
+    auto sdp_uri = delivery_method->Attribute("sessionDescriptionURI");
+    auto broadcast_app_service = delivery_method->FirstChildElement("r12:broadcastAppService");
+    std::string broadcast_base_pattern = broadcast_app_service->FirstChildElement(
+        "r12:basePattern")->GetText();
+
+    if (broadcast_base_pattern == base) {
+      for (const auto &item: _items) {
+        if (item.uri == broadcast_base_pattern) {
+          cs->read_master_manifest(item.content);
+        }
+        if (item.content_type == "application/sdp" &&
+            item.uri == sdp_uri) {
+          broadcast_delivery_available = cs->configure_5gbc_delivery_from_sdp(item.content);
+        }
+      }
+    }
+  }
+
+  return broadcast_delivery_available;
+}
+
+void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::XMLElement *app_service,
+                                                                     const std::shared_ptr<MBMS_RT::Service> &service,
+                                                                     tinyxml2::XMLElement *usd) {
+  auto alternative_content = app_service->FirstChildElement("r12:alternativeContent");
+  if (alternative_content != nullptr) {
+    for (auto *base_pattern = alternative_content->FirstChildElement("r12:basePattern");
+         base_pattern != nullptr;
+         base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
+      std::string base = base_pattern->GetText();
+
+      // create a content stream
+      std::shared_ptr<ContentStream> cs;
+      if (_seamless) {
+        cs = std::make_shared<SeamlessContentStream>(base, _iface, _io_service, _cache,
+                                                     service->delivery_protocol(), _cfg);
+      } else {
+        cs = std::make_shared<ContentStream>(base, _iface, _io_service, _cache, service->delivery_protocol(),
+                                             _cfg);
+      }
+
+
+      // Check for 5GBC delivery method elements
+      bool broadcast_delivery_available = _setupBroadcastDelivery(usd, base, cs);
+      bool unicast_delivery_available = false;
+
+      // When seamless switching is enabed we check for unicast endpoints as well
+      if (_seamless) {
+        if (!broadcast_delivery_available) {
+          // No 5G broadcast available. Assume the base pattern is a CDN endpoint.
+          std::dynamic_pointer_cast<SeamlessContentStream>(cs)->set_cdn_endpoint(base);
+          unicast_delivery_available = true;
+        } else {
+          // Check for identical content entries to find a CDN base pattern
+          for (auto *identical_content = app_service->FirstChildElement("r12:identicalContent");
+               identical_content != nullptr;
+               identical_content = identical_content->NextSiblingElement("r12:identicalContent")) {
+
+            bool base_matched = false;
+            std::string found_identical_base;
+            for (auto *base_pattern = identical_content->FirstChildElement("r12:basePattern");
+                 base_pattern != nullptr;
+                 base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
+              std::string identical_base = base_pattern->GetText();
+              if (base == identical_base) {
+                base_matched = true;
+              } else {
+                found_identical_base = identical_base;
+              }
+            }
+
+            if (base_matched && found_identical_base.length()) {
+              std::dynamic_pointer_cast<SeamlessContentStream>(cs)->set_cdn_endpoint(found_identical_base);
+            }
+          }
+        }
+      }
+
+      if (unicast_delivery_available || broadcast_delivery_available) {
+        service->add_and_start_content_stream(cs);
+      }
+    }
+  }
+}
+
+/**
  * Parses the MBMS USD
  * @param {MBMS_RT::ServiceAnnouncement::Item} item
  */
@@ -267,82 +365,8 @@ MBMS_RT::ServiceAnnouncement::_handleMbmbsUserServiceDescriptionBundle(const MBM
       auto app_service = usd->FirstChildElement("r12:appService");
       _handleAppService(app_service, service);
 
-      auto alternative_content = app_service->FirstChildElement("r12:alternativeContent");
-      if (alternative_content != nullptr) {
-        for (auto *base_pattern = alternative_content->FirstChildElement("r12:basePattern");
-             base_pattern != nullptr;
-             base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
-          std::string base = base_pattern->GetText();
-
-          // create a content stream
-          std::shared_ptr<ContentStream> cs;
-          if (_seamless) {
-            cs = std::make_shared<SeamlessContentStream>(base, _iface, _io_service, _cache,
-                                                         service->delivery_protocol(), _cfg);
-          } else {
-            cs = std::make_shared<ContentStream>(base, _iface, _io_service, _cache, service->delivery_protocol(),
-                                                 _cfg);
-          }
-          bool have_delivery_method = false;
-
-          // Check for 5GBC delivery method elements
-          for (auto *delivery_method = usd->FirstChildElement("deliveryMethod");
-               delivery_method != nullptr;
-               delivery_method = delivery_method->NextSiblingElement("deliveryMethod")) {
-            auto sdp_uri = delivery_method->Attribute("sessionDescriptionURI");
-            auto broadcast_app_service = delivery_method->FirstChildElement("r12:broadcastAppService");
-            std::string broadcast_base_pattern = broadcast_app_service->FirstChildElement(
-                "r12:basePattern")->GetText();
-
-            if (broadcast_base_pattern == base) {
-              for (const auto &item: _items) {
-                if (item.uri == broadcast_base_pattern) {
-                  cs->read_master_manifest(item.content);
-                }
-                if (item.content_type == "application/sdp" &&
-                    item.uri == sdp_uri) {
-                  have_delivery_method = cs->configure_5gbc_delivery_from_sdp(item.content);
-                }
-              }
-            }
-          }
-
-          if (_seamless) {
-            if (!have_delivery_method) {
-              // No 5G broadcast available. Assume the base pattern is a CDN endpoint.
-              std::dynamic_pointer_cast<SeamlessContentStream>(cs)->set_cdn_endpoint(base);
-              have_delivery_method = true;
-            } else {
-              // Check for identical content entries to find a CDN base pattern
-              for (auto *identical_content = app_service->FirstChildElement("r12:identicalContent");
-                   identical_content != nullptr;
-                   identical_content = identical_content->NextSiblingElement("r12:identicalContent")) {
-
-                bool base_matched = false;
-                std::string found_identical_base;
-                for (auto *base_pattern = identical_content->FirstChildElement("r12:basePattern");
-                     base_pattern != nullptr;
-                     base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
-                  std::string identical_base = base_pattern->GetText();
-                  if (base == identical_base) {
-                    base_matched = true;
-                  } else {
-                    found_identical_base = identical_base;
-                  }
-                }
-
-                if (base_matched && found_identical_base.length()) {
-                  std::dynamic_pointer_cast<SeamlessContentStream>(cs)->set_cdn_endpoint(found_identical_base);
-                }
-              }
-            }
-          }
-
-          if (have_delivery_method) {
-            service->add_and_start_content_stream(cs);
-          }
-        }
-      }
+      // We need an alternativeContent attribute to setup the service
+      _setupByAlternativeContentElement(app_service, service, usd);
 
       if (is_new_service && service->content_streams().size() > 0) {
         _set_service(service_id, service);
