@@ -26,6 +26,7 @@
 #include "Receiver.h"
 #include "Service.h"
 #include "CacheManagement.h"
+#include "Constants.h"
 
 namespace MBMS_RT {
   class ServiceAnnouncement {
@@ -56,7 +57,7 @@ namespace MBMS_RT {
 
     uint32_t toi() const { return _toi; };
 
-    void parse_bootstrap(const std::string &str);
+    void parse_bootstrap(const std::string &str, const std::string &bootstrap_format = ServiceAnnouncementFormatConstants::DEFAULT);
 
     void start_flute_receiver(const std::string &mcast_address);
 
@@ -90,7 +91,7 @@ namespace MBMS_RT {
 
     void _handleMbmsEnvelope(const Item &item);
 
-    void _handleMbmbsUserServiceDescriptionBundle(const Item &item);
+    void _handleMbmbsUserServiceDescriptionBundle(const Item &item, const std::string &bootstrap_format);
 
     std::tuple<std::shared_ptr<MBMS_RT::Service>, bool>
     _registerService(tinyxml2::XMLElement *usd, const std::string &service_id);
@@ -101,6 +102,11 @@ namespace MBMS_RT {
 
     void
     _setupByAlternativeContentElement(tinyxml2::XMLElement *app_service,
+                                      const std::shared_ptr<MBMS_RT::Service> &service,
+                                      tinyxml2::XMLElement *usd);
+
+    void
+    _setupBy5GMagConfig(tinyxml2::XMLElement *app_service,
                                       const std::shared_ptr<MBMS_RT::Service> &service,
                                       tinyxml2::XMLElement *usd);
   };

@@ -23,6 +23,12 @@ namespace ContentTypeConstants {
   const std::string MBMS_USER_SERVICE_DESCRIPTION = "application/mbms-user-service-description+xml";
   const std::string HLS = "application/vnd.apple.mpegurl";
   const std::string DASH = "application/dash+xml";
+  const std::string SDP = "application/sdp";
+}
+
+namespace ServiceAnnouncementFormatConstants {
+  const std::string DEFAULT = "default";
+  const std::string FIVEG_MAG_BC_UC = "5gmag_bc_uc";
 }
 
 #endif //MW_CONSTANTS_H

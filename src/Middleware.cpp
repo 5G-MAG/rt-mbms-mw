@@ -54,10 +54,12 @@ MBMS_RT::Middleware::Middleware(boost::asio::io_service &io_service, const libco
 bool MBMS_RT::Middleware::_handle_local_service_announcement() {
   try {
     bool local_service_enabled = false;
-    std::string local_bootstrap_file = "";
+    std::string local_bootstrap_file;
+    std::string bootstrap_format;
 
     _cfg.lookupValue("mw.local_service.enabled", local_service_enabled);
     _cfg.lookupValue("mw.local_service.bootstrap_file", local_bootstrap_file);
+    _cfg.lookupValue("mw.bootstrap_format", bootstrap_format);
 
     if (local_service_enabled && local_bootstrap_file != "") {
       spdlog::info("Reading service announcement from file at {}", local_bootstrap_file);
@@ -75,7 +77,7 @@ bool MBMS_RT::Middleware::_handle_local_service_announcement() {
                                                                                          _1),  //NOLINT
                                                                              boost::bind(&Middleware::set_service, this,
                                                                                          _1, _2)); //NOLINT
-      _service_announcement->parse_bootstrap(sa_multipart);
+      _service_announcement->parse_bootstrap(sa_multipart, bootstrap_format);
 
       return true;
     }

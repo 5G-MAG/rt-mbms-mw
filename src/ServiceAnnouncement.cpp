@@ -77,7 +77,7 @@ auto MBMS_RT::ServiceAnnouncement::start_flute_receiver(const std::string &mcast
               (!_bootstrapped || _toi != file->meta().toi)) {
             _toi = file->meta().toi;
             _raw_content = std::string(file->buffer());
-            parse_bootstrap(file->buffer());
+            parse_bootstrap(file->buffer(), ServiceAnnouncementFormatConstants::DEFAULT);
           }
         });
   }};
@@ -87,7 +87,8 @@ auto MBMS_RT::ServiceAnnouncement::start_flute_receiver(const std::string &mcast
  * Parse the service announcement/bootstrap file
  * @param str
  */
-auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string &str) -> void {
+auto
+MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string &str, const std::string &bootstrap_format) -> void {
 
   // Add all the SA items including their content to _items
   _addServiceAnnouncementItems(str);
@@ -102,7 +103,7 @@ auto MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string &str) -> vo
   // Parse MBMS user service description bundle
   for (const auto &item: _items) {
     if (item.content_type == ContentTypeConstants::MBMS_USER_SERVICE_DESCRIPTION) {
-      _handleMbmbsUserServiceDescriptionBundle(item);
+      _handleMbmbsUserServiceDescriptionBundle(item, bootstrap_format);
     }
   }
 }
@@ -278,6 +279,63 @@ bool MBMS_RT::ServiceAnnouncement::_setupBroadcastDelivery(tinyxml2::XMLElement 
   return broadcast_delivery_available;
 }
 
+void MBMS_RT::ServiceAnnouncement::_setupBy5GMagConfig(tinyxml2::XMLElement *app_service,
+                                                       const std::shared_ptr<MBMS_RT::Service> &service,
+                                                       tinyxml2::XMLElement *usd) {
+
+
+// Create content stream objects for each broadcastAppService::basePattern element.
+  for (auto *delivery_method = usd->FirstChildElement("deliveryMethod");
+       delivery_method != nullptr;
+       delivery_method = delivery_method->NextSiblingElement("deliveryMethod")) {
+    auto sdp_uri = delivery_method->Attribute("sessionDescriptionURI");
+    // We assume that the master manifest is signaled in the SA and that we can simply replace the .sdp ending with .m3u8 to find the element with the right Content-Location
+    auto manifest_url = std::regex_replace(sdp_uri, std::regex(".sdp"), ".m3u8");
+    auto broadcast_app_service = delivery_method->FirstChildElement("r12:broadcastAppService");
+    std::vector <std::shared_ptr<ContentStream>> broadcastContentStreams;
+
+    if (broadcast_app_service != nullptr) {
+      for (auto *base_pattern = broadcast_app_service->FirstChildElement("r12:basePattern");
+           base_pattern != nullptr;
+           base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
+
+        // create a content stream
+        std::shared_ptr <ContentStream> cs;
+        if (_seamless) {
+          cs = std::make_shared<SeamlessContentStream>(manifest_url, _iface, _io_service, _cache,
+                                                       service->delivery_protocol(), _cfg);
+        } else {
+          cs = std::make_shared<ContentStream>(manifest_url, _iface, _io_service, _cache, service->delivery_protocol(),
+                                               _cfg);
+        }
+
+        for (const auto &item: _items) {
+          if (item.uri == manifest_url) {
+            cs->read_master_manifest(item.content);
+          }
+          if (item.content_type == ContentTypeConstants::SDP &&
+              item.uri == sdp_uri) {
+            cs->configure_5gbc_delivery_from_sdp(item.content);
+          }
+        }
+
+        broadcastContentStreams.push_back(cs);
+      }
+    }
+  }
+
+// Iterate through unicastAppService elements. If we find a match in identical content we add the CDN information to the existing broadcast content stream
+// If not we create a new content stream object pointing to the CDN url
+
+}
+
+
+/**
+ * Setup according to original SA format with an alternativeContentElement required to indicate that the stream is available via BC and UC
+ * @param app_service
+ * @param service
+ * @param usd
+ */
 void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::XMLElement *app_service,
                                                                      const std::shared_ptr<MBMS_RT::Service> &service,
                                                                      tinyxml2::XMLElement *usd) {
@@ -289,7 +347,7 @@ void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::X
       std::string base = base_pattern->GetText();
 
       // create a content stream
-      std::shared_ptr<ContentStream> cs;
+      std::shared_ptr <ContentStream> cs;
       if (_seamless) {
         cs = std::make_shared<SeamlessContentStream>(base, _iface, _io_service, _cache,
                                                      service->delivery_protocol(), _cfg);
@@ -303,7 +361,7 @@ void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::X
       bool broadcast_delivery_available = _setupBroadcastDelivery(usd, base, cs);
       bool unicast_delivery_available = false;
 
-      // When seamless switching is enabed we check for unicast endpoints as well
+      // When seamless switching is enabled we check for unicast endpoints as well
       if (_seamless) {
         if (!broadcast_delivery_available) {
           // No 5G broadcast available. Assume the base pattern is a CDN endpoint.
@@ -347,7 +405,8 @@ void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::X
  * @param {MBMS_RT::ServiceAnnouncement::Item} item
  */
 void
-MBMS_RT::ServiceAnnouncement::_handleMbmbsUserServiceDescriptionBundle(const MBMS_RT::ServiceAnnouncement::Item &item) {
+MBMS_RT::ServiceAnnouncement::_handleMbmbsUserServiceDescriptionBundle(const MBMS_RT::ServiceAnnouncement::Item &item,
+                                                                       const std::string &bootstrap_format) {
   try {
     tinyxml2::XMLDocument doc;
     doc.Parse(item.content.c_str());
@@ -365,8 +424,12 @@ MBMS_RT::ServiceAnnouncement::_handleMbmbsUserServiceDescriptionBundle(const MBM
       auto app_service = usd->FirstChildElement("r12:appService");
       _handleAppService(app_service, service);
 
-      // We need an alternativeContent attribute to setup the service
-      _setupByAlternativeContentElement(app_service, service, usd);
+      // For the default format we need an alternativeContent attribute to setup the service
+      if (bootstrap_format == ServiceAnnouncementFormatConstants::FIVEG_MAG_BC_UC) {
+        _setupBy5GMagConfig(app_service, service, usd);
+      } else {
+        _setupByAlternativeContentElement(app_service, service, usd);
+      }
 
       if (is_new_service && service->content_streams().size() > 0) {
         _set_service(service_id, service);
