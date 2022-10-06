@@ -16,6 +16,8 @@
 //
 
 #include <regex>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/classification.hpp>
 #include "Service.h"
 #include "Receiver.h"
 #include "HlsPrimaryPlaylist.h"
@@ -84,9 +86,13 @@ auto MBMS_RT::Service::add_and_start_content_stream(std::shared_ptr<ContentStrea
 
 auto MBMS_RT::Service::set_delivery_protocol_from_mime_type(const std::string& mime_type) -> void
 {
+  // Need to remove potential profile from mimeType, example:application/dash+xml;profiles=urn:3GPP:PSS:profile:DASH10
+  std::vector<std::string> strs;
+  boost::split(strs, mime_type, boost::is_any_of(";"));
+  std::string adjusted_mime_type= strs.front();
   _delivery_protocol = 
-    ( mime_type == ContentTypeConstants::HLS ? DeliveryProtocol::HLS :
-      ( mime_type == ContentTypeConstants::DASH ? DeliveryProtocol::DASH : DeliveryProtocol::RTP ) );
+    ( adjusted_mime_type == ContentTypeConstants::HLS ? DeliveryProtocol::HLS :
+      ( adjusted_mime_type == ContentTypeConstants::DASH ? DeliveryProtocol::DASH : DeliveryProtocol::RTP ) );
   spdlog::info("Setting delivery type {} from MIME type {}", _delivery_protocol == DeliveryProtocol::HLS ? "HLS" : (
         _delivery_protocol == DeliveryProtocol::DASH ? "DASH" : "RTP"), mime_type);
 };
