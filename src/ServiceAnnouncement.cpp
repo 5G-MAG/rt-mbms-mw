@@ -77,7 +77,7 @@ auto MBMS_RT::ServiceAnnouncement::start_flute_receiver(const std::string &mcast
               (!_bootstrapped || _toi != file->meta().toi)) {
             _toi = file->meta().toi;
             _raw_content = std::string(file->buffer());
-            parse_bootstrap(file->buffer(), ServiceAnnouncementFormatConstants::DEFAULT);
+            parse_bootstrap(file->buffer());
           }
         });
   }};
@@ -88,7 +88,9 @@ auto MBMS_RT::ServiceAnnouncement::start_flute_receiver(const std::string &mcast
  * @param str
  */
 auto
-MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string &str, const std::string &bootstrap_format) -> void {
+MBMS_RT::ServiceAnnouncement::parse_bootstrap(const std::string &str) -> void {
+  std::string bootstrap_format = ServiceAnnouncementFormatConstants::DEFAULT;
+  _cfg.lookupValue("mw.bootstrap_format", bootstrap_format);
 
   // Add all the SA items including their content to _items
   _addServiceAnnouncementItems(str);
@@ -161,7 +163,8 @@ void MBMS_RT::ServiceAnnouncement::_handleMbmsEnvelope(const MBMS_RT::ServiceAnn
     tinyxml2::XMLDocument doc;
     doc.Parse(item.content.c_str());
     auto envelope = doc.FirstChildElement(ServiceAnnouncementXmlElements::METADATA_ENVELOPE);
-    for (auto *i = envelope->FirstChildElement(ServiceAnnouncementXmlElements::ITEM); i != nullptr; i = i->NextSiblingElement(ServiceAnnouncementXmlElements::ITEM)) {
+    for (auto *i = envelope->FirstChildElement(ServiceAnnouncementXmlElements::ITEM);
+         i != nullptr; i = i->NextSiblingElement(ServiceAnnouncementXmlElements::ITEM)) {
       spdlog::debug("uri: {}", i->Attribute(ServiceAnnouncementXmlElements::METADATA_URI));
       for (auto &ir: _items) {
         if (ir.uri == i->Attribute(ServiceAnnouncementXmlElements::METADATA_URI)) {
@@ -209,6 +212,8 @@ MBMS_RT::ServiceAnnouncement::_handleMbmbsUserServiceDescriptionBundle(const MBM
       // For the default format we need an alternativeContent attribute to setup the service
       if (bootstrap_format == ServiceAnnouncementFormatConstants::FIVEG_MAG_BC_UC) {
         _setupBy5GMagConfig(app_service, service, usd);
+      } else if (bootstrap_format == ServiceAnnouncementFormatConstants::FIVEG_MAG_LEGACY) {
+        _setupBy5GMagLegacyFormat(app_service, service, usd);
       } else {
         _setupByAlternativeContentElement(app_service, service, usd);
       }
@@ -240,7 +245,8 @@ MBMS_RT::ServiceAnnouncement::_registerService(tinyxml2::XMLElement *usd, const 
   }
 
   // read the names
-  for (auto *name = usd->FirstChildElement(ServiceAnnouncementXmlElements::NAME); name != nullptr; name = name->NextSiblingElement(ServiceAnnouncementXmlElements::NAME)) {
+  for (auto *name = usd->FirstChildElement(ServiceAnnouncementXmlElements::NAME);
+       name != nullptr; name = name->NextSiblingElement(ServiceAnnouncementXmlElements::NAME)) {
     auto lang = name->Attribute(ServiceAnnouncementXmlElements::LANG);
     auto namestr = name->GetText();
     if (lang && namestr) {
@@ -363,8 +369,8 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagConfig(tinyxml2::XMLElement *app
               if (unicast_url == identical_content_url) {
                 found_identical_element = true;
               } else {
-                for (auto & element : broadcastContentStreams) {
-                  if(element->base() == identical_content_url) {
+                for (auto &element: broadcastContentStreams) {
+                  if (element->base() == identical_content_url) {
                     broadcast_content_stream = std::dynamic_pointer_cast<SeamlessContentStream>(element);
                   }
                 }
@@ -386,17 +392,77 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagConfig(tinyxml2::XMLElement *app
       }
     }
 
-    for (auto & element : unicastContentStreams) {
+    for (auto &element: unicastContentStreams) {
       service->add_and_start_content_stream(element);
     }
 
-    for (auto & element : broadcastContentStreams) {
+    for (auto &element: broadcastContentStreams) {
       service->add_and_start_content_stream(element);
     }
 
     spdlog::info("Finished SA setup with 5G-MAG Format");
   }
 
+}
+
+/**
+ * Setup according to the format that was used for the first 5G-MAG sample recordings
+ * @param app_service
+ * @param service
+ * @param usd
+ */
+void MBMS_RT::ServiceAnnouncement::_setupBy5GMagLegacyFormat(tinyxml2::XMLElement *app_service,
+                                                             const std::shared_ptr<MBMS_RT::Service> &service,
+                                                             tinyxml2::XMLElement *usd) {
+
+  std::vector<std::shared_ptr<ContentStream>> broadcastContentStreams;
+// Create content stream objects for each broadcastAppService::basePattern element.
+  for (auto *delivery_method = usd->FirstChildElement(ServiceAnnouncementXmlElements::DELIVERY_METHOD);
+       delivery_method != nullptr;
+       delivery_method = delivery_method->NextSiblingElement(ServiceAnnouncementXmlElements::DELIVERY_METHOD)) {
+    auto sdp_uri = delivery_method->Attribute(ServiceAnnouncementXmlElements::SESSION_DESCRIPTION_URI);
+    // We assume that the master manifest is signaled in the SA and that we can simply replace the .sdp ending with .m3u8 to find the element with the right Content-Location
+    auto manifest_url = std::regex_replace(sdp_uri, std::regex(".sdp"), ".m3u8");
+    auto broadcast_app_service = delivery_method->FirstChildElement(
+        ServiceAnnouncementXmlElements::BROADCAST_APP_SERVICE);
+
+    if (broadcast_app_service != nullptr) {
+      for (auto *base_pattern = broadcast_app_service->FirstChildElement(ServiceAnnouncementXmlElements::BASE_PATTERN);
+           base_pattern != nullptr;
+           base_pattern = base_pattern->NextSiblingElement(ServiceAnnouncementXmlElements::BASE_PATTERN)) {
+
+        std::string broadcast_url = base_pattern->GetText();
+
+        // create a content stream if this is not a base pattern that points to file://
+        if (broadcast_url.find("file://") == std::string::npos) {
+
+          std::shared_ptr<ContentStream> cs;
+          cs = std::make_shared<ContentStream>(broadcast_url, _iface, _io_service, _cache, service->delivery_protocol(),
+                                               _cfg);
+
+
+          for (const auto &item: _items) {
+            if (item.uri == manifest_url) {
+              cs->read_master_manifest(item.content);
+            }
+            if (item.content_type == ContentTypeConstants::SDP &&
+                item.uri == sdp_uri) {
+              cs->configure_5gbc_delivery_from_sdp(item.content);
+            }
+          }
+
+          broadcastContentStreams.push_back(cs);
+        }
+      }
+    }
+
+    for (auto &element: broadcastContentStreams) {
+      service->add_and_start_content_stream(element);
+    }
+
+    spdlog::info("Finished SA setup with 5G-MAG Legacy Format");
+
+  }
 }
 
 
@@ -433,7 +499,8 @@ void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::X
            delivery_method != nullptr;
            delivery_method = delivery_method->NextSiblingElement(ServiceAnnouncementXmlElements::DELIVERY_METHOD)) {
         auto sdp_uri = delivery_method->Attribute(ServiceAnnouncementXmlElements::SESSION_DESCRIPTION_URI);
-        auto broadcast_app_service = delivery_method->FirstChildElement(ServiceAnnouncementXmlElements::BROADCAST_APP_SERVICE);
+        auto broadcast_app_service = delivery_method->FirstChildElement(
+            ServiceAnnouncementXmlElements::BROADCAST_APP_SERVICE);
         std::string broadcast_base_pattern = broadcast_app_service->FirstChildElement(
             ServiceAnnouncementXmlElements::BASE_PATTERN)->GetText();
 

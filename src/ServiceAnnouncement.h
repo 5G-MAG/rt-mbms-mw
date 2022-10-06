@@ -57,7 +57,7 @@ namespace MBMS_RT {
 
     uint32_t toi() const { return _toi; };
 
-    void parse_bootstrap(const std::string &str, const std::string &bootstrap_format = ServiceAnnouncementFormatConstants::DEFAULT);
+    void parse_bootstrap(const std::string &str);
 
     void start_flute_receiver(const std::string &mcast_address);
 
@@ -109,5 +109,10 @@ namespace MBMS_RT {
     _setupBy5GMagConfig(tinyxml2::XMLElement *app_service,
                                       const std::shared_ptr<MBMS_RT::Service> &service,
                                       tinyxml2::XMLElement *usd);
+
+    void
+    _setupBy5GMagLegacyFormat(tinyxml2::XMLElement *app_service,
+                        const std::shared_ptr<MBMS_RT::Service> &service,
+                        tinyxml2::XMLElement *usd);
   };
 }

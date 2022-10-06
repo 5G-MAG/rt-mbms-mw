@@ -29,6 +29,7 @@ namespace ContentTypeConstants {
 namespace ServiceAnnouncementFormatConstants {
   const std::string DEFAULT = "default";
   const std::string FIVEG_MAG_BC_UC = "5gmag_bc_uc";
+  const std::string FIVEG_MAG_LEGACY = "5gmag_legacy";
 }
 
 
