@@ -33,6 +33,12 @@ namespace ServiceAnnouncementFormatConstants {
 
 
 namespace ServiceAnnouncementXmlElements {
+  const char *const BUNDLE_DESCRIPTION = "bundleDescription";
+  const char *const NAME = "name";
+  const char *const LANG = "lang";
+  const char *const USER_SERVICE_DESCRIPTION = "userServiceDescription";
+  const char *const SERVICE_ID = "serviceId";
+  const char *const APP_SERVICE = "r12:appService";
   const char *const DELIVERY_METHOD = "deliveryMethod";
   const char *const SESSION_DESCRIPTION_URI = "sessionDescriptionURI";
   const char *const BASE_PATTERN = "r12:basePattern";
@@ -40,6 +46,14 @@ namespace ServiceAnnouncementXmlElements {
   const char *const UNICAST_APP_SERVICE = "r12:unicastAppService";
   const char *const ALTERNATIVE_CONTENT = "r12:alternativeContent";
   const char *const IDENTICAL_CONTENT = "r12:identicalContent";
+  const char *const MIME_TYPE = "mimeType";
+  const char *const APP_SERVICE_DESCRIPTION_URI = "appServiceDescriptionURI";
+  const char *const METADATA_ENVELOPE = "metadataEnvelope";
+  const char *const METADATA_URI = "metadataURI";
+  const char *const ITEM = "item";
+  const char *const VERSION = "version";
+  const char *const VALID_FROM = "validFrom";
+  const char *const VALID_UNTIL = "validUntil";
 }
 
 #endif //MW_CONSTANTS_H

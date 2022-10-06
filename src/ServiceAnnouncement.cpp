@@ -160,25 +160,65 @@ void MBMS_RT::ServiceAnnouncement::_handleMbmsEnvelope(const MBMS_RT::ServiceAnn
   try {
     tinyxml2::XMLDocument doc;
     doc.Parse(item.content.c_str());
-    auto envelope = doc.FirstChildElement("metadataEnvelope");
-    for (auto *i = envelope->FirstChildElement("item"); i != nullptr; i = i->NextSiblingElement("item")) {
-      spdlog::debug("uri: {}", i->Attribute("metadataURI"));
+    auto envelope = doc.FirstChildElement(ServiceAnnouncementXmlElements::METADATA_ENVELOPE);
+    for (auto *i = envelope->FirstChildElement(ServiceAnnouncementXmlElements::ITEM); i != nullptr; i = i->NextSiblingElement(ServiceAnnouncementXmlElements::ITEM)) {
+      spdlog::debug("uri: {}", i->Attribute(ServiceAnnouncementXmlElements::METADATA_URI));
       for (auto &ir: _items) {
-        if (ir.uri == i->Attribute("metadataURI")) {
-          std::stringstream ss_from(i->Attribute("validFrom"));
+        if (ir.uri == i->Attribute(ServiceAnnouncementXmlElements::METADATA_URI)) {
+          std::stringstream ss_from(i->Attribute(ServiceAnnouncementXmlElements::VALID_FROM));
           struct std::tm from;
           ss_from >> std::get_time(&from, "%Y-%m-%dT%H:%M:%S.%fZ");
           ir.valid_from = mktime(&from);
-          std::stringstream ss_until(i->Attribute("validUntil"));
+          std::stringstream ss_until(i->Attribute(ServiceAnnouncementXmlElements::VALID_UNTIL));
           struct std::tm until;
           ss_until >> std::get_time(&until, "%Y-%m-%dT%H:%M:%S.%fZ");
           ir.valid_until = mktime(&until);
-          ir.version = atoi(i->Attribute("version"));
+          ir.version = atoi(i->Attribute(ServiceAnnouncementXmlElements::VERSION));
         }
       }
     }
   } catch (std::exception e) {
     spdlog::warn("MBMS envelope parsing failed: {}", e.what());
+  }
+}
+
+/**
+ * Parses the MBMS USD
+ * @param {MBMS_RT::ServiceAnnouncement::Item} item
+ */
+void
+MBMS_RT::ServiceAnnouncement::_handleMbmbsUserServiceDescriptionBundle(const MBMS_RT::ServiceAnnouncement::Item &item,
+                                                                       const std::string &bootstrap_format) {
+  try {
+    tinyxml2::XMLDocument doc;
+    doc.Parse(item.content.c_str());
+
+    auto bundle = doc.FirstChildElement(ServiceAnnouncementXmlElements::BUNDLE_DESCRIPTION);
+    for (auto *usd = bundle->FirstChildElement(ServiceAnnouncementXmlElements::USER_SERVICE_DESCRIPTION);
+         usd != nullptr;
+         usd = usd->NextSiblingElement(ServiceAnnouncementXmlElements::USER_SERVICE_DESCRIPTION)) {
+
+      // Create a new service
+      auto service_id = usd->Attribute(ServiceAnnouncementXmlElements::SERVICE_ID);
+      auto[service, is_new_service] = _registerService(usd, service_id);
+
+      // Handle the app service element. Will read the master manifest as provided in the SA
+      auto app_service = usd->FirstChildElement(ServiceAnnouncementXmlElements::APP_SERVICE);
+      _handleAppService(app_service, service);
+
+      // For the default format we need an alternativeContent attribute to setup the service
+      if (bootstrap_format == ServiceAnnouncementFormatConstants::FIVEG_MAG_BC_UC) {
+        _setupBy5GMagConfig(app_service, service, usd);
+      } else {
+        _setupByAlternativeContentElement(app_service, service, usd);
+      }
+
+      if (is_new_service && service->content_streams().size() > 0) {
+        _set_service(service_id, service);
+      }
+    }
+  } catch (std::exception e) {
+    spdlog::warn("MBMS user service desription parsing failed: {}", e.what());
   }
 }
 
@@ -200,8 +240,8 @@ MBMS_RT::ServiceAnnouncement::_registerService(tinyxml2::XMLElement *usd, const 
   }
 
   // read the names
-  for (auto *name = usd->FirstChildElement("name"); name != nullptr; name = name->NextSiblingElement("name")) {
-    auto lang = name->Attribute("lang");
+  for (auto *name = usd->FirstChildElement(ServiceAnnouncementXmlElements::NAME); name != nullptr; name = name->NextSiblingElement(ServiceAnnouncementXmlElements::NAME)) {
+    auto lang = name->Attribute(ServiceAnnouncementXmlElements::LANG);
     auto namestr = name->GetText();
     if (lang && namestr) {
       service->add_name(namestr, lang);
@@ -222,13 +262,13 @@ MBMS_RT::ServiceAnnouncement::_registerService(tinyxml2::XMLElement *usd, const 
 void MBMS_RT::ServiceAnnouncement::_handleAppService(tinyxml2::XMLElement *app_service,
                                                      std::shared_ptr<MBMS_RT::Service> service) {
 
-  service->set_delivery_protocol_from_mime_type(app_service->Attribute("mimeType"));
+  service->set_delivery_protocol_from_mime_type(app_service->Attribute(ServiceAnnouncementXmlElements::MIME_TYPE));
 
   // Now search for the content that corresponds to appServiceDescriptionURI. For instance appServiceDescriptionURI="http://localhost/watchfolder/manifest.m3u8"
   // The attribute appServiceDescriptionURI of r12:appService references an Application Service Description which may be a Media Presentation Description fragment corresponding to a unified MPD.
   for (const auto &item: _items) {
     // item.uri is derived from the Content-Location of each entry in the bootstrap file. For HLS we are looking for the content of the master manifest in the bootstrap file:
-    if (item.uri == app_service->Attribute("appServiceDescriptionURI")) {
+    if (item.uri == app_service->Attribute(ServiceAnnouncementXmlElements::APP_SERVICE_DESCRIPTION_URI)) {
       web::uri uri(item.uri);
 
       // remove file, leave only dir
@@ -243,40 +283,6 @@ void MBMS_RT::ServiceAnnouncement::_handleAppService(tinyxml2::XMLElement *app_s
       service->read_master_manifest(item.content, base_path);
     }
   }
-}
-
-/**
- * Check for broadcastAppService element and setup delivery method if available
- * @param usd
- * @param base
- * @param cs
- * @return
- */
-bool MBMS_RT::ServiceAnnouncement::_setupBroadcastDelivery(tinyxml2::XMLElement *usd, std::string base,
-                                                           std::shared_ptr<MBMS_RT::ContentStream> cs) {
-  bool broadcast_delivery_available = false;
-  for (auto *delivery_method = usd->FirstChildElement("deliveryMethod");
-       delivery_method != nullptr;
-       delivery_method = delivery_method->NextSiblingElement("deliveryMethod")) {
-    auto sdp_uri = delivery_method->Attribute("sessionDescriptionURI");
-    auto broadcast_app_service = delivery_method->FirstChildElement("r12:broadcastAppService");
-    std::string broadcast_base_pattern = broadcast_app_service->FirstChildElement(
-        "r12:basePattern")->GetText();
-
-    if (broadcast_base_pattern == base) {
-      for (const auto &item: _items) {
-        if (item.uri == broadcast_base_pattern) {
-          cs->read_master_manifest(item.content);
-        }
-        if (item.content_type == "application/sdp" &&
-            item.uri == sdp_uri) {
-          broadcast_delivery_available = cs->configure_5gbc_delivery_from_sdp(item.content);
-        }
-      }
-    }
-  }
-
-  return broadcast_delivery_available;
 }
 
 void MBMS_RT::ServiceAnnouncement::_setupBy5GMagConfig(tinyxml2::XMLElement *app_service,
@@ -388,7 +394,7 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagConfig(tinyxml2::XMLElement *app
       service->add_and_start_content_stream(element);
     }
 
-    spdlog::debug("Finished SA setup with 5G-MAG Format");
+    spdlog::info("Finished SA setup with 5G-MAG Format");
   }
 
 }
@@ -422,7 +428,27 @@ void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::X
 
 
       // Check for 5GBC delivery method elements
-      bool broadcast_delivery_available = _setupBroadcastDelivery(usd, base, cs);
+      bool broadcast_delivery_available = false;
+      for (auto *delivery_method = usd->FirstChildElement(ServiceAnnouncementXmlElements::DELIVERY_METHOD);
+           delivery_method != nullptr;
+           delivery_method = delivery_method->NextSiblingElement(ServiceAnnouncementXmlElements::DELIVERY_METHOD)) {
+        auto sdp_uri = delivery_method->Attribute(ServiceAnnouncementXmlElements::SESSION_DESCRIPTION_URI);
+        auto broadcast_app_service = delivery_method->FirstChildElement(ServiceAnnouncementXmlElements::BROADCAST_APP_SERVICE);
+        std::string broadcast_base_pattern = broadcast_app_service->FirstChildElement(
+            ServiceAnnouncementXmlElements::BASE_PATTERN)->GetText();
+
+        if (broadcast_base_pattern == base) {
+          for (const auto &item: _items) {
+            if (item.uri == broadcast_base_pattern) {
+              cs->read_master_manifest(item.content);
+            }
+            if (item.content_type == ContentTypeConstants::SDP &&
+                item.uri == sdp_uri) {
+              broadcast_delivery_available = cs->configure_5gbc_delivery_from_sdp(item.content);
+            }
+          }
+        }
+      }
       bool unicast_delivery_available = false;
 
       // When seamless switching is enabled we check for unicast endpoints as well
@@ -464,45 +490,5 @@ void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::X
         service->add_and_start_content_stream(cs);
       }
     }
-  }
-}
-
-/**
- * Parses the MBMS USD
- * @param {MBMS_RT::ServiceAnnouncement::Item} item
- */
-void
-MBMS_RT::ServiceAnnouncement::_handleMbmbsUserServiceDescriptionBundle(const MBMS_RT::ServiceAnnouncement::Item &item,
-                                                                       const std::string &bootstrap_format) {
-  try {
-    tinyxml2::XMLDocument doc;
-    doc.Parse(item.content.c_str());
-
-    auto bundle = doc.FirstChildElement("bundleDescription");
-    for (auto *usd = bundle->FirstChildElement("userServiceDescription");
-         usd != nullptr;
-         usd = usd->NextSiblingElement("userServiceDescription")) {
-
-      // Create a new service
-      auto service_id = usd->Attribute("serviceId");
-      auto[service, is_new_service] = _registerService(usd, service_id);
-
-      // Handle the app service element. Will read the master manifest as provided in the SA
-      auto app_service = usd->FirstChildElement("r12:appService");
-      _handleAppService(app_service, service);
-
-      // For the default format we need an alternativeContent attribute to setup the service
-      if (bootstrap_format == ServiceAnnouncementFormatConstants::FIVEG_MAG_BC_UC) {
-        _setupBy5GMagConfig(app_service, service, usd);
-      } else {
-        _setupByAlternativeContentElement(app_service, service, usd);
-      }
-
-      if (is_new_service && service->content_streams().size() > 0) {
-        _set_service(service_id, service);
-      }
-    }
-  } catch (std::exception e) {
-    spdlog::warn("MBMS user service desription parsing failed: {}", e.what());
   }
 }
