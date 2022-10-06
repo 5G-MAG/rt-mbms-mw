@@ -283,29 +283,32 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagConfig(tinyxml2::XMLElement *app
                                                        const std::shared_ptr<MBMS_RT::Service> &service,
                                                        tinyxml2::XMLElement *usd) {
 
-
+  std::vector<std::shared_ptr<ContentStream>> broadcastContentStreams;
+  std::vector<std::shared_ptr<SeamlessContentStream>> unicastContentStreams;
 // Create content stream objects for each broadcastAppService::basePattern element.
-  for (auto *delivery_method = usd->FirstChildElement("deliveryMethod");
+  for (auto *delivery_method = usd->FirstChildElement(ServiceAnnouncementXmlElements::DELIVERY_METHOD);
        delivery_method != nullptr;
-       delivery_method = delivery_method->NextSiblingElement("deliveryMethod")) {
-    auto sdp_uri = delivery_method->Attribute("sessionDescriptionURI");
+       delivery_method = delivery_method->NextSiblingElement(ServiceAnnouncementXmlElements::DELIVERY_METHOD)) {
+    auto sdp_uri = delivery_method->Attribute(ServiceAnnouncementXmlElements::SESSION_DESCRIPTION_URI);
     // We assume that the master manifest is signaled in the SA and that we can simply replace the .sdp ending with .m3u8 to find the element with the right Content-Location
     auto manifest_url = std::regex_replace(sdp_uri, std::regex(".sdp"), ".m3u8");
-    auto broadcast_app_service = delivery_method->FirstChildElement("r12:broadcastAppService");
-    std::vector <std::shared_ptr<ContentStream>> broadcastContentStreams;
+    auto broadcast_app_service = delivery_method->FirstChildElement(
+        ServiceAnnouncementXmlElements::BROADCAST_APP_SERVICE);
 
     if (broadcast_app_service != nullptr) {
-      for (auto *base_pattern = broadcast_app_service->FirstChildElement("r12:basePattern");
+      for (auto *base_pattern = broadcast_app_service->FirstChildElement(ServiceAnnouncementXmlElements::BASE_PATTERN);
            base_pattern != nullptr;
-           base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
+           base_pattern = base_pattern->NextSiblingElement(ServiceAnnouncementXmlElements::BASE_PATTERN)) {
+
+        std::string broadcast_url = base_pattern->GetText();
 
         // create a content stream
-        std::shared_ptr <ContentStream> cs;
+        std::shared_ptr<ContentStream> cs;
         if (_seamless) {
-          cs = std::make_shared<SeamlessContentStream>(manifest_url, _iface, _io_service, _cache,
+          cs = std::make_shared<SeamlessContentStream>(broadcast_url, _iface, _io_service, _cache,
                                                        service->delivery_protocol(), _cfg);
         } else {
-          cs = std::make_shared<ContentStream>(manifest_url, _iface, _io_service, _cache, service->delivery_protocol(),
+          cs = std::make_shared<ContentStream>(broadcast_url, _iface, _io_service, _cache, service->delivery_protocol(),
                                                _cfg);
         }
 
@@ -322,10 +325,71 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagConfig(tinyxml2::XMLElement *app
         broadcastContentStreams.push_back(cs);
       }
     }
-  }
 
-// Iterate through unicastAppService elements. If we find a match in identical content we add the CDN information to the existing broadcast content stream
-// If not we create a new content stream object pointing to the CDN url
+    if (_seamless) {
+      // Iterate through unicastAppService elements. If we find a match in identical content we add the CDN information to the existing broadcast content stream
+      // If not we create a new content stream object pointing to the CDN url
+      auto unicast_app_service = delivery_method->FirstChildElement(
+          ServiceAnnouncementXmlElements::UNICAST_APP_SERVICE);
+      if (unicast_app_service != nullptr) {
+        for (auto *base_pattern = unicast_app_service->FirstChildElement(
+            ServiceAnnouncementXmlElements::BASE_PATTERN);
+             base_pattern != nullptr;
+             base_pattern = base_pattern->NextSiblingElement(ServiceAnnouncementXmlElements::BASE_PATTERN)) {
+          // For HLS streams base_pattern now holds the url to the media manifest
+          std::string unicast_url = base_pattern->GetText();
+          // Check for identical content entries that contain this base pattern.
+          for (auto *identical_content = app_service->FirstChildElement(
+              ServiceAnnouncementXmlElements::IDENTICAL_CONTENT);
+               identical_content != nullptr;
+               identical_content = identical_content->NextSiblingElement(
+                   ServiceAnnouncementXmlElements::IDENTICAL_CONTENT)) {
+            std::shared_ptr<SeamlessContentStream> broadcast_content_stream;
+            bool found_identical_element = false;
+            for (auto *base_pattern_ic = identical_content->FirstChildElement(
+                ServiceAnnouncementXmlElements::BASE_PATTERN);
+                 base_pattern_ic != nullptr;
+                 base_pattern_ic = base_pattern_ic->NextSiblingElement(ServiceAnnouncementXmlElements::BASE_PATTERN)) {
+              // For HLS streams base_pattern_ic now holds either an url that points to a BC media playlist or to a UC playlist
+              std::string identical_content_url = base_pattern_ic->GetText();
+              // Check if we have a match of our current unicast url with the url in the identical content element
+              // Otherwise check if the current identical content url points to an existing BC element
+              if (unicast_url == identical_content_url) {
+                found_identical_element = true;
+              } else {
+                for (auto & element : broadcastContentStreams) {
+                  if(element->base() == identical_content_url) {
+                    broadcast_content_stream = std::dynamic_pointer_cast<SeamlessContentStream>(element);
+                  }
+                }
+              }
+            }
+            // If we found a matching broadcast stream we add the CDN url to this one. Otherwise, we create a new SeamlessContentStream element
+            if (broadcast_content_stream != nullptr && found_identical_element) {
+              broadcast_content_stream->set_cdn_endpoint(unicast_url);
+            } else {
+              std::shared_ptr<SeamlessContentStream> cs = std::make_shared<SeamlessContentStream>(manifest_url, _iface,
+                                                                                                  _io_service, _cache,
+                                                                                                  service->delivery_protocol(),
+                                                                                                  _cfg);
+              cs->set_cdn_endpoint(unicast_url);
+              unicastContentStreams.push_back(cs);
+            }
+          }
+        }
+      }
+    }
+
+    for (auto & element : unicastContentStreams) {
+      service->add_and_start_content_stream(element);
+    }
+
+    for (auto & element : broadcastContentStreams) {
+      service->add_and_start_content_stream(element);
+    }
+
+    spdlog::debug("Finished SA setup with 5G-MAG Format");
+  }
 
 }
 
@@ -339,15 +403,15 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagConfig(tinyxml2::XMLElement *app
 void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::XMLElement *app_service,
                                                                      const std::shared_ptr<MBMS_RT::Service> &service,
                                                                      tinyxml2::XMLElement *usd) {
-  auto alternative_content = app_service->FirstChildElement("r12:alternativeContent");
+  auto alternative_content = app_service->FirstChildElement(ServiceAnnouncementXmlElements::ALTERNATIVE_CONTENT);
   if (alternative_content != nullptr) {
-    for (auto *base_pattern = alternative_content->FirstChildElement("r12:basePattern");
+    for (auto *base_pattern = alternative_content->FirstChildElement(ServiceAnnouncementXmlElements::BASE_PATTERN);
          base_pattern != nullptr;
-         base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
+         base_pattern = base_pattern->NextSiblingElement(ServiceAnnouncementXmlElements::BASE_PATTERN)) {
       std::string base = base_pattern->GetText();
 
       // create a content stream
-      std::shared_ptr <ContentStream> cs;
+      std::shared_ptr<ContentStream> cs;
       if (_seamless) {
         cs = std::make_shared<SeamlessContentStream>(base, _iface, _io_service, _cache,
                                                      service->delivery_protocol(), _cfg);
@@ -369,15 +433,18 @@ void MBMS_RT::ServiceAnnouncement::_setupByAlternativeContentElement(tinyxml2::X
           unicast_delivery_available = true;
         } else {
           // Check for identical content entries to find a CDN base pattern
-          for (auto *identical_content = app_service->FirstChildElement("r12:identicalContent");
+          for (auto *identical_content = app_service->FirstChildElement(
+              ServiceAnnouncementXmlElements::IDENTICAL_CONTENT);
                identical_content != nullptr;
-               identical_content = identical_content->NextSiblingElement("r12:identicalContent")) {
+               identical_content = identical_content->NextSiblingElement(
+                   ServiceAnnouncementXmlElements::IDENTICAL_CONTENT)) {
 
             bool base_matched = false;
             std::string found_identical_base;
-            for (auto *base_pattern = identical_content->FirstChildElement("r12:basePattern");
+            for (auto *base_pattern = identical_content->FirstChildElement(
+                ServiceAnnouncementXmlElements::BASE_PATTERN);
                  base_pattern != nullptr;
-                 base_pattern = base_pattern->NextSiblingElement("r12:basePattern")) {
+                 base_pattern = base_pattern->NextSiblingElement(ServiceAnnouncementXmlElements::BASE_PATTERN)) {
               std::string identical_base = base_pattern->GetText();
               if (base == identical_base) {
                 base_matched = true;

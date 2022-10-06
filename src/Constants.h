@@ -31,4 +31,15 @@ namespace ServiceAnnouncementFormatConstants {
   const std::string FIVEG_MAG_BC_UC = "5gmag_bc_uc";
 }
 
+
+namespace ServiceAnnouncementXmlElements {
+  const char *const DELIVERY_METHOD = "deliveryMethod";
+  const char *const SESSION_DESCRIPTION_URI = "sessionDescriptionURI";
+  const char *const BASE_PATTERN = "r12:basePattern";
+  const char *const BROADCAST_APP_SERVICE = "r12:broadcastAppService";
+  const char *const UNICAST_APP_SERVICE = "r12:unicastAppService";
+  const char *const ALTERNATIVE_CONTENT = "r12:alternativeContent";
+  const char *const IDENTICAL_CONTENT = "r12:identicalContent";
+}
+
 #endif //MW_CONSTANTS_H
