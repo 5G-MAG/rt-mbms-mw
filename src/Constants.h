@@ -24,6 +24,8 @@ namespace ContentTypeConstants {
   const std::string HLS = "application/vnd.apple.mpegurl";
   const std::string DASH = "application/dash+xml";
   const std::string SDP = "application/sdp";
+  const std::string HLS_MANIFEST = "m3u8";
+  const std::string DASH_MANIFEST = "mpd";
 }
 
 namespace ServiceAnnouncementFormatConstants {

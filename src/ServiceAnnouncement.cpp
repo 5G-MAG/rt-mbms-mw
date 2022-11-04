@@ -421,8 +421,9 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagLegacyFormat(tinyxml2::XMLElemen
        delivery_method != nullptr;
        delivery_method = delivery_method->NextSiblingElement(ServiceAnnouncementXmlElements::DELIVERY_METHOD)) {
     auto sdp_uri = delivery_method->Attribute(ServiceAnnouncementXmlElements::SESSION_DESCRIPTION_URI);
-    // We assume that the master manifest is signaled in the SA and that we can simply replace the .sdp ending with .m3u8 to find the element with the right Content-Location
-    auto manifest_url = std::regex_replace(sdp_uri, std::regex(".sdp"), ".m3u8");
+    // We assume that the master manifest is signaled in the SA and that we can simply replace the .sdp ending with .m3u8 or .mpd to find the element with the right Content-Location
+    std::string manifest_type = service->delivery_protocol() == DeliveryProtocol::HLS ? ContentTypeConstants::HLS_MANIFEST : ContentTypeConstants::DASH_MANIFEST;
+    auto manifest_url = std::regex_replace(sdp_uri, std::regex(".sdp"), "." + manifest_type);
     auto broadcast_app_service = delivery_method->FirstChildElement(
         ServiceAnnouncementXmlElements::BROADCAST_APP_SERVICE);
 
@@ -434,7 +435,7 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagLegacyFormat(tinyxml2::XMLElemen
         std::string broadcast_url = base_pattern->GetText();
 
         // create a content stream if this is not a base pattern that points to file://
-        if (broadcast_url.find("file://") == std::string::npos) {
+        if (service->delivery_protocol() == DeliveryProtocol::DASH || (service->delivery_protocol() == DeliveryProtocol::HLS && broadcast_url.find("file://") == std::string::npos)) {
 
           std::shared_ptr<ContentStream> cs;
           cs = std::make_shared<ContentStream>(broadcast_url, _iface, _io_service, _cache, service->delivery_protocol(),
@@ -442,7 +443,7 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagLegacyFormat(tinyxml2::XMLElemen
 
 
           for (const auto &item: _items) {
-            if (item.uri == manifest_url) {
+            if (item.uri == manifest_url && service->delivery_protocol() == DeliveryProtocol::HLS) {
               cs->read_master_manifest(item.content);
             }
             if (item.content_type == ContentTypeConstants::SDP &&

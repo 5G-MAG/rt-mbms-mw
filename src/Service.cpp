@@ -40,7 +40,7 @@ auto MBMS_RT::Service::read_master_manifest(const std::string& manifest, const s
     _hls_primary_playlist = HlsPrimaryPlaylist(manifest, base_path);
   }
 
-  _manifest_path = base_path + "manifest.m3u8",
+  _manifest_path = _delivery_protocol == DeliveryProtocol::HLS ? base_path + "manifest.m3u8" : base_path + "manifest.mpd",
   _cache.add_item( std::make_shared<CachedPlaylist>(
         _manifest_path,
         0,

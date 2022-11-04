@@ -34,7 +34,7 @@ auto MBMS_RT::CacheManagement::check_file_expiry_and_cache_size() -> void
     if (it->second->received_at() != 0) {
       auto age = time(nullptr) - it->second->received_at();
       if (age > _max_cache_file_age) {
-        spdlog::debug("Cache management deleting expired item at {} after {} seconds",
+        spdlog::info("Cache management deleting expired item at {} after {} seconds",
             it->second->content_location(), age);
         it = _cache_items.erase(it);
       } else {
@@ -49,7 +49,7 @@ auto MBMS_RT::CacheManagement::check_file_expiry_and_cache_size() -> void
   for (const auto& it : items_by_age) {
     total_size += _cache_items[it.second]->content_length();
     if (total_size > _max_cache_size) {
-        spdlog::debug("Cache management deleting item at {} (aged {} secs) due to cache size limit",
+        spdlog::info("Cache management deleting item at {} (aged {} secs) due to cache size limit",
             it.second, it.first);
         _cache_items.erase(it.second);
     }
