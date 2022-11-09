@@ -20,6 +20,7 @@
 #include <thread>
 #include <libconfig.h++>
 #include "HlsPrimaryPlaylist.h"
+#include "DashManifest.h"
 #include "File.h"
 #include "Receiver.h"
 #include "ContentStream.h"
@@ -53,6 +54,7 @@ namespace MBMS_RT {
       std::map<std::string, std::string> _names;
 
       HlsPrimaryPlaylist _hls_primary_playlist;
+      DashManifest _dash_manifest;
       std::string _manifest;
       std::string _manifest_path;
   };

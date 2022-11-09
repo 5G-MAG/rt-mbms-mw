@@ -55,7 +55,7 @@ set(CMAKE_CXX_CLANG_TIDY clang-tidy --format-style=google --checks=clang-diagnos
 # Adds an executable target called mw to be built from the source files listed in the command invocation
 add_executable(mw src/main.cpp src/RpRestClient.cpp src/Service.cpp src/ServiceAnnouncement.cpp
         src/CacheManagement.cpp src/ContentStream.cpp src/RestHandler.cpp src/Middleware.cpp
-        src/HlsMediaPlaylist.cpp src/HlsPrimaryPlaylist.cpp
+        src/HlsMediaPlaylist.cpp src/HlsPrimaryPlaylist.cpp src/DashManifest.cpp
         src/seamless/CdnClient.cpp src/seamless/CdnFile.cpp src/seamless/SeamlessContentStream.cpp src/seamless/Segment.cpp
         src/on_demand/ControlSystemRestClient.cpp
         )
