@@ -287,6 +287,7 @@ void MBMS_RT::ServiceAnnouncement::_handleAppService(tinyxml2::XMLElement *app_s
         base_path.erase(0, 1);
       }
       service->read_master_manifest(item.content, base_path);
+      _base_path = base_path;
     }
   }
 }
@@ -441,7 +442,7 @@ void MBMS_RT::ServiceAnnouncement::_setupBy5GMagLegacyFormat(tinyxml2::XMLElemen
           cs = std::make_shared<ContentStream>(broadcast_url, _iface, _io_service, _cache, service->delivery_protocol(),
                                                _cfg);
 
-
+          cs->set_base_path(_base_path);
           for (const auto &item: _items) {
             if (item.uri == manifest_url && service->delivery_protocol() == DeliveryProtocol::HLS) {
               cs->read_master_manifest(item.content);

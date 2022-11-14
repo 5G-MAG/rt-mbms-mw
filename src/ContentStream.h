@@ -66,10 +66,14 @@ namespace MBMS_RT {
       double frame_rate() const { return _frame_rate; }
       void set_frame_rate(double f) { _frame_rate = f; };
 
+    std::string base_path() const { return _base_path; }
+    void set_base_path(std::string p) { _base_path = p; };
+
     protected:
       const libconfig::Config& _cfg;
       DeliveryProtocol _delivery_protocol;
       std::string _base = "";
+      std::string _base_path;
       std::string _playlist_path;
       std::string _5gbc_stream_iface;
       std::string _5gbc_stream_type = "none";

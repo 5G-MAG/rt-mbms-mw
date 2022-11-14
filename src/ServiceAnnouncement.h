@@ -80,6 +80,7 @@ namespace MBMS_RT {
     std::string _tmgi;
     std::string _mcast_addr;
     std::string _mcast_port;
+    std::string _base_path;
     unsigned long long _tsi = 0;
     std::thread _flute_thread;
     std::unique_ptr<LibFlute::Receiver> _flute_receiver;

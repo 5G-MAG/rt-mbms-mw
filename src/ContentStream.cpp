@@ -23,19 +23,13 @@
 #include "spdlog/spdlog.h"
 #include "cpprest/base_uri.h"
 
-MBMS_RT::ContentStream::ContentStream(std::string base, std::string flute_if, boost::asio::io_service& io_service, CacheManagement& cache, DeliveryProtocol protocol, const libconfig::Config& cfg)
-  : _5gbc_stream_iface( std::move(flute_if) )
-  , _cfg(cfg)
-  , _delivery_protocol(protocol)
-  , _base(std::move(base))
-  , _io_service(io_service)
-  , _cache(cache)
-  , _flute_thread{}
-{
+MBMS_RT::ContentStream::ContentStream(std::string base, std::string flute_if, boost::asio::io_service &io_service,
+                                      CacheManagement &cache, DeliveryProtocol protocol, const libconfig::Config &cfg)
+    : _5gbc_stream_iface(std::move(flute_if)), _cfg(cfg), _delivery_protocol(protocol), _base(std::move(base)),
+      _io_service(io_service), _cache(cache), _flute_thread{} {
 }
 
-MBMS_RT::ContentStream::~ContentStream() 
-{
+MBMS_RT::ContentStream::~ContentStream() {
   spdlog::debug("Destroying content stream at base {}", _base);
   if (_flute_receiver) {
     _flute_receiver->stop();
@@ -43,11 +37,10 @@ MBMS_RT::ContentStream::~ContentStream()
   }
 }
 
-auto MBMS_RT::ContentStream::configure_5gbc_delivery_from_sdp(const std::string& sdp) -> bool {
+auto MBMS_RT::ContentStream::configure_5gbc_delivery_from_sdp(const std::string &sdp) -> bool {
   spdlog::debug("ContentStream parsing SDP");
   std::istringstream iss(sdp);
-  for (std::string line; std::getline(iss, line); )
-  {
+  for (std::string line; std::getline(iss, line);) {
     const std::regex sdp_line_regex("^([a-z])\\=(.+)$");
     std::smatch match;
     if (std::regex_match(line, match, sdp_line_regex)) {
@@ -92,39 +85,46 @@ auto MBMS_RT::ContentStream::configure_5gbc_delivery_from_sdp(const std::string&
       }
     }
   }
-  if (!_5gbc_stream_type.empty() && !_5gbc_stream_mcast_addr.empty() && 
+  if (!_5gbc_stream_type.empty() && !_5gbc_stream_mcast_addr.empty() &&
       !_5gbc_stream_mcast_port.empty()) {
     spdlog::info("ContentStream SDP parsing complete. Stream type {}, TSI {}, MCast at {}:{}",
-        _5gbc_stream_type, _5gbc_stream_flute_tsi, _5gbc_stream_mcast_addr, _5gbc_stream_mcast_port);
+                 _5gbc_stream_type, _5gbc_stream_flute_tsi, _5gbc_stream_mcast_addr, _5gbc_stream_mcast_port);
     return true;
   }
   return false;
 }
 
 auto MBMS_RT::ContentStream::flute_file_received(std::shared_ptr<LibFlute::File> file) -> void {
-  spdlog::info("ContentStream: {} (TOI {}, MIME type {}) has been received",
-      file->meta().content_location, file->meta().toi, file->meta().content_type);
+  spdlog::info("ContentStream: {} (TOI {}, MIME type {}) has been received at {}",
+               file->meta().content_location, file->meta().toi, file->meta().content_type, file->received_at());
   if (file->meta().content_location != "index.m3u8") { // ignore generated manifests
-    _cache.add_item( std::make_shared<CachedFile>(
-          file->meta().content_location, file->received_at(), std::move(file) )
-        );
+    std::string content_location = file->meta().content_location;
+    // DASH: Add BaseURl to the content location of the received segments otherwise we do not have a cache match later
+    if (_delivery_protocol == MBMS_RT::DeliveryProtocol::DASH) {
+      content_location = _base_path + content_location;
+    }
+    _cache.add_item(std::make_shared<CachedFile>(
+        content_location, file->received_at(), std::move(file))
+    );
   }
 }
 
 auto MBMS_RT::ContentStream::start() -> void {
   spdlog::info("ContentStream starting");
   if (_5gbc_stream_type == "FLUTE/UDP") {
-    spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}", _5gbc_stream_mcast_addr, _5gbc_stream_mcast_port, _5gbc_stream_flute_tsi);
-    _flute_thread = std::thread{[&](){
-      _flute_receiver = std::make_unique<LibFlute::Receiver>(_5gbc_stream_iface, _5gbc_stream_mcast_addr, 
-          atoi(_5gbc_stream_mcast_port.c_str()), _5gbc_stream_flute_tsi, _io_service) ;
-      _flute_receiver->register_completion_callback(boost::bind(&ContentStream::flute_file_received, this, _1)); //NOLINT
+    spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}", _5gbc_stream_mcast_addr, _5gbc_stream_mcast_port,
+                 _5gbc_stream_flute_tsi);
+    _flute_thread = std::thread{[&]() {
+      _flute_receiver = std::make_unique<LibFlute::Receiver>(_5gbc_stream_iface, _5gbc_stream_mcast_addr,
+                                                             atoi(_5gbc_stream_mcast_port.c_str()),
+                                                             _5gbc_stream_flute_tsi, _io_service);
+      _flute_receiver->register_completion_callback(
+          boost::bind(&ContentStream::flute_file_received, this, _1)); //NOLINT
     }};
   }
 };
 
-auto MBMS_RT::ContentStream::read_master_manifest(const std::string& manifest) -> void
-{
+auto MBMS_RT::ContentStream::read_master_manifest(const std::string &manifest) -> void {
   if (_delivery_protocol == DeliveryProtocol::HLS) {
     auto pl = HlsPrimaryPlaylist(manifest, "");
     if (pl.streams().size() == 1) {
@@ -136,12 +136,11 @@ auto MBMS_RT::ContentStream::read_master_manifest(const std::string& manifest) -
   }
 }
 
-auto MBMS_RT::ContentStream::flute_info() const -> std::string
-{
+auto MBMS_RT::ContentStream::flute_info() const -> std::string {
   if (_5gbc_stream_type == "none") {
     return "n/a";
   } else {
-    return _5gbc_stream_type + ": " + _5gbc_stream_mcast_addr + ":" + _5gbc_stream_mcast_port + 
-      ", TSI " + std::to_string(_5gbc_stream_flute_tsi); 
+    return _5gbc_stream_type + ": " + _5gbc_stream_mcast_addr + ":" + _5gbc_stream_mcast_port +
+           ", TSI " + std::to_string(_5gbc_stream_flute_tsi);
   }
 }
