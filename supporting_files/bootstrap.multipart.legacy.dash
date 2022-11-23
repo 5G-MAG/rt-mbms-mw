@@ -61,7 +61,7 @@ a=mbms-mode:broadcast-mbsfn 269087077
 c=IN IP4 238.1.1.111/127
 b=AS:3045
 m=application 40101 FLUTE/UDP 0
-a=flute-tsi:16
+a=flute-tsi:0
 a=flute-ch:1
 a=3GPP-QoE-Metrics:metrics={Object_Loss};rate=null;resolution=10
 a=3GPP-QoE-Metrics:metrics={Network_Resource};rate=null;resolution=10
