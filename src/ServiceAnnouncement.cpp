@@ -233,8 +233,8 @@ MBMS_RT::ServiceAnnouncement::_handleMbmbsUserServiceDescriptionBundle(const MBM
  * @param service_id
  * @return
  */
-std::tuple<std::shared_ptr<MBMS_RT::Service>, bool>
-MBMS_RT::ServiceAnnouncement::_registerService(tinyxml2::XMLElement *usd, const std::string &service_id) {
+auto
+MBMS_RT::ServiceAnnouncement::_registerService(tinyxml2::XMLElement *usd, const std::string &service_id) -> std::tuple<std::shared_ptr<MBMS_RT::Service>, bool> {
   // Register a new service if we have not seen this service id before
 
   bool is_new_service = false;
@@ -265,8 +265,8 @@ MBMS_RT::ServiceAnnouncement::_registerService(tinyxml2::XMLElement *usd, const 
  * @param app_service
  * @param service
  */
-void MBMS_RT::ServiceAnnouncement::_handleAppService(tinyxml2::XMLElement *app_service,
-                                                     std::shared_ptr<MBMS_RT::Service> service) {
+void MBMS_RT::ServiceAnnouncement::_handleAppService(tinyxml2::XMLElement *app_service,const
+                                                     std::shared_ptr<MBMS_RT::Service> &service) {
 
   service->set_delivery_protocol_from_mime_type(app_service->Attribute(ServiceAnnouncementXmlElements::MIME_TYPE));
 

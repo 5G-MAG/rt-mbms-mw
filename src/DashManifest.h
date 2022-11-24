@@ -24,7 +24,7 @@
 namespace MBMS_RT {
   class DashManifest {
   public:
-    DashManifest(const std::string &content, const std::string &base_path);
+    DashManifest(std::string content, std::string base_path);
 
     DashManifest() = default;
 

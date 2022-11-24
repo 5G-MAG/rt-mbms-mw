@@ -17,5 +17,7 @@
 
 #include "DashManifest.h"
 
-MBMS_RT::DashManifest::DashManifest(const std::string &content, const std::string &base_path)
-    : content(content), base_path(base_path) {}
+#include <utility>
+
+MBMS_RT::DashManifest::DashManifest(std::string content, std::string base_path)
+    : content(std::move(content)), base_path(std::move(base_path)) {}

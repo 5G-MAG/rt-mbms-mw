@@ -51,7 +51,7 @@ MBMS_RT::Middleware::Middleware(boost::asio::io_service &io_service, const libco
  *
  * @return {bool} Whether a local SA file was used
  */
-bool MBMS_RT::Middleware::_handle_local_service_announcement() {
+auto MBMS_RT::Middleware::_handle_local_service_announcement() -> bool {
   try {
     bool local_service_enabled = false;
     std::string local_bootstrap_file;
