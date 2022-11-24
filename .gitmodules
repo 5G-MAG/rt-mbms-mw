@@ -2,5 +2,5 @@
 	path = lib/libflute
 	url = https://github.com/5G-MAG/rt-libflute
 [submodule "supporting_files"]
-    path = supporting_files
+    path = supporting_files/test
     url = https://github.com/5G-MAG/rt-common-shared
