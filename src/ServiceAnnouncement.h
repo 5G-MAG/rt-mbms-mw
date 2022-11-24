@@ -97,7 +97,7 @@ namespace MBMS_RT {
     std::tuple<std::shared_ptr<MBMS_RT::Service>, bool>
     _registerService(tinyxml2::XMLElement *usd, const std::string &service_id);
 
-    void _handleAppService(tinyxml2::XMLElement *app_service, std::shared_ptr<Service> service);
+    void _handleAppService(tinyxml2::XMLElement *app_service, const std::shared_ptr<Service> &service);
 
     bool _setupBroadcastDelivery(tinyxml2::XMLElement *usd, std::string base, std::shared_ptr<ContentStream> cs);
 
