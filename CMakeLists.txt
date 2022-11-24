@@ -76,8 +76,8 @@ install(TARGETS mw)
 
 # Move supporting files to specific folders
 install(FILES supporting_files/5gmag-rt-mw.service DESTINATION /usr/lib/systemd/system)
-install(FILES supporting_files/5gmag-rt.conf DESTINATION /etc)
-install(FILES supporting_files/5gmag-rt-wui DESTINATION /etc/nginx/sites-available/)
+install(FILES supporting_files/mbms/common-config/5gmag-rt.conf DESTINATION /etc)
+install(FILES supporting_files/mbms/common-config/5gmag-rt-wui DESTINATION /etc/nginx/sites-available/)
 
 # Configure generators for binary installers and source packages.
 SET(CPACK_GENERATOR "DEB")

@@ -1,3 +1,7 @@
 [submodule "lib/libflute"]
 	path = lib/libflute
 	url = ../rt-libflute.git
+[submodule "shared_config"]
+    path = supporting_files
+    url = ../rt-common-shared.git
+    branch = feature/mbms
