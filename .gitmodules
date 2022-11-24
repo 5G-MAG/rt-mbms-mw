@@ -1,6 +1,6 @@
 [submodule "lib/libflute"]
 	path = lib/libflute
-	url = ../rt-libflute.git
+	url = https://github.com/5G-MAG/rt-libflute
 [submodule "supporting_files"]
     path = supporting_files
-    url = ../rt-common-shared.git
+    url = https://github.com/5G-MAG/rt-common-shared
