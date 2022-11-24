@@ -22,25 +22,39 @@
 #include <boost/asio.hpp>
 #include "RpRestClient.h"
 #include "Service.h"
+#include "ServiceAnnouncement.h"
 #include "File.h"
 #include "RestHandler.h"
+#include "CacheManagement.h"
+#include "Service.h"
+#include "on_demand/ControlSystemRestClient.h"
 
 namespace MBMS_RT {
   class Middleware {
     public:
       Middleware( boost::asio::io_service& io_service, const libconfig::Config& cfg, const std::string& api_url, const std::string& iface);
+
+      std::shared_ptr<Service> get_service(const std::string& service_id);
+      void set_service(const std::string& service_id, std::shared_ptr<Service> service) { _services[service_id] = service; };
+
     private:
       void tick_handler();
 
-      unsigned _max_cache_size = 512;
-      unsigned _total_cache_size = 0;
-      unsigned _max_cache_file_age = 30;
+      bool _seamless = false;
+
 
       MBMS_RT::RpRestClient _rp;
       MBMS_RT::RestHandler _api;
-      std::map<std::string, std::string> _available_services;
-      std::map<std::string, std::unique_ptr<MBMS_RT::Service>> _services;
-      std::map<std::string, std::unique_ptr<MBMS_RT::Service>> _payload_flute_streams;
+      MBMS_RT::CacheManagement _cache;
+
+      bool _control_system = false;
+      MBMS_RT::ControlSystemRestClient _control;
+      boost::posix_time::seconds _control_tick_interval = boost::posix_time::seconds(10);
+      boost::asio::deadline_timer _control_timer;
+      void control_tick_handler();
+
+      std::unique_ptr<MBMS_RT::ServiceAnnouncement> _service_announcement = {nullptr};
+      std::map<std::string, std::shared_ptr<Service>> _services;
 
       boost::posix_time::seconds _tick_interval;
       boost::asio::deadline_timer _timer;
@@ -48,5 +62,7 @@ namespace MBMS_RT {
       const libconfig::Config& _cfg;
       const std::string& _interface;
       boost::asio::io_service& _io_service;
+
+      bool _handle_local_service_announcement();
     };
 };

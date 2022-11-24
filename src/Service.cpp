@@ -16,161 +16,88 @@
 //
 
 #include <regex>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/classification.hpp>
 #include "Service.h"
 #include "Receiver.h"
+#include "HlsPrimaryPlaylist.h"
+#include "DashManifest.h"
+#include "Constants.h"
 
 #include "spdlog/spdlog.h"
-#include "gmime/gmime.h" 
-#include "tinyxml2.h" 
+#include "gmime/gmime.h"
+#include "tinyxml2.h"
 
-
-MBMS_RT::Service::Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service)
-  : _cfg(cfg)
-  , _tmgi(std::move(tmgi))
-  , _tsi(tsi)
-  , _iface(std::move(iface))
-  , _flute_thread{}
-{
-  size_t delim = mcast.find(':');
-  if (delim == std::string::npos) {
-    spdlog::error("Invalid multicast address {}", mcast);
-    return;
-  }
-  _mcast_addr = mcast.substr(0, delim);
-  _mcast_port = mcast.substr(delim + 1);
-  spdlog::info("Starting FLUTE receiver on {}:{} for TSI {}", _mcast_addr, _mcast_port, _tsi); 
-  _flute_thread = std::thread{[&](){
-    _flute_receiver = std::make_unique<LibFlute::Receiver>(_iface, _mcast_addr, atoi(_mcast_port.c_str()), _tsi, io_service) ;
-  }};
+auto MBMS_RT::Service::add_name(const std::string &name, const std::string &lang) -> void {
+  spdlog::debug("Service name added: {} ({})", name, lang);
+  _names[lang] = name;
 }
 
-MBMS_RT::Service::~Service() {
-  spdlog::info("Closing service with TMGI {}", _tmgi);
-  _flute_receiver.reset();
-  if (_flute_thread.joinable()) {
-    _flute_thread.join();
-  }
-}
-
-auto MBMS_RT::Service::fileList() -> std::vector<std::shared_ptr<LibFlute::File>>
-{
-  if (_flute_receiver) {
-    return _flute_receiver->file_list();
-  } else {
-    return std::vector<std::shared_ptr<LibFlute::File>>();
-  }
-}
-
-auto MBMS_RT::Service::tryParseBootstrapFile(std::string str) -> void
-{
-  g_mime_init();
-
-  // R&S header has no newlines, fix that
-  str = std::regex_replace(str, std::regex(" Content-Type:"), "\nContent-Type:");
-  str = std::regex_replace(str, std::regex(" Content-Description:"), "\nContent-Description:");
-
-  auto stream = g_mime_stream_mem_new_with_buffer(str.c_str(), str.length());
-  auto parser = g_mime_parser_new_with_stream(stream);
-  g_object_unref(stream);
-
-  auto mpart = g_mime_parser_construct_part(parser, nullptr);
-  g_object_unref(parser);
-
-  auto iter = g_mime_part_iter_new(mpart);
-  auto ct = g_mime_object_get_content_type_parameter(mpart, "type");
-  while (g_mime_part_iter_next(iter)) {
-    GMimeObject *current = g_mime_part_iter_get_current (iter);
-    GMimeObject *parent = g_mime_part_iter_get_parent (iter);
-
-    if (GMIME_IS_MULTIPART (parent) && GMIME_IS_PART (current)) {
-      auto type = std::string(g_mime_content_type_get_mime_type(g_mime_object_get_content_type(current)));
-      auto options = g_mime_format_options_new();
-      g_mime_format_options_add_hidden_header(options, "Content-Type");
-      g_mime_format_options_add_hidden_header(options, "Content-Transfer-Encoding");
-      g_mime_format_options_add_hidden_header(options, "Content-Location");
-
-      if (type == "application/mbms-user-service-description+xml") {
-        _service_description = g_mime_object_to_string(current, options);
-      } else if (type == "application/sdp" && _sdp.empty()) {
-        _sdp = g_mime_object_to_string(current, options);
-        _sdp = std::regex_replace(_sdp, std::regex("^\n"), "");
-      } else if (type == "application/vnd.apple.mpegurl") {
-        _m3u = g_mime_object_to_string(current, options);
-      }
-    }
+auto MBMS_RT::Service::read_master_manifest(const std::string &manifest, const std::string &base_path) -> void {
+  spdlog::debug("service: master manifest contents:\n{}, base path {}", manifest, base_path);
+  if (_delivery_protocol == DeliveryProtocol::HLS) {
+    _hls_primary_playlist = HlsPrimaryPlaylist(manifest, base_path);
+  } else if(_delivery_protocol == DeliveryProtocol::DASH) {
+    _dash_manifest = DashManifest(manifest, base_path);
   }
 
-  if (!_service_description.empty()) {
-    tinyxml2::XMLDocument doc;
-    doc.Parse(_service_description.c_str());
-    auto bundle = doc.FirstChildElement("bundleDescription");
-    if (bundle) {
-      auto usd = bundle->FirstChildElement("userServiceDescription");
-      if (usd) {
-        _service_name = usd->FirstChildElement("name")->GetText();
-        spdlog::debug("Service Name: {}", _service_name);
-      }
-    }
-  }
-
-  if (!_sdp.empty()) {
-    std::istringstream iss(_sdp);
-    for (std::string line; std::getline(iss, line); )
-    {
-      const std::regex sdp_line_regex("^([a-z])\\=(.+)$");
-      std::smatch match;
-      if (std::regex_match(line, match, sdp_line_regex)) {
-        if (match.size() == 3) {
-          auto field = match[1].str();
-          auto value = match[2].str();
-          spdlog::debug("{}: {}", field, value);
-
-          if (field == "c") {
-            const std::regex value_regex("^IN (IP.) ([0-9\\.]+).*$");
-            std::smatch cmatch;
-            if (std::regex_match(value, cmatch, value_regex)) {
-              if (cmatch.size() == 3) {
-                _stream_mcast_addr = cmatch[2].str();
-              }
-            }
-          } else if (field == "m") {
-            const std::regex value_regex("^application (.+) (.+)$");
-            std::smatch cmatch;
-            if (std::regex_match(value, cmatch, value_regex)) {
-              if (cmatch.size() == 3) {
-                _stream_mcast_port = cmatch[1].str();
-                _stream_type = cmatch[2].str();
-              }
-            }
-            const std::regex value_regex2("^application (.+) (.+) (.+)$");
-            if (std::regex_match(value, cmatch, value_regex2)) {
-              if (cmatch.size() == 4) {
-                _stream_mcast_port = cmatch[1].str();
-                _stream_type = cmatch[2].str();
-              }
-            }
-          } else if (field == "a") {
-            const std::regex value_regex("^flute-tsi:(.+)$");
-            std::smatch cmatch;
-            if (std::regex_match(value, cmatch, value_regex)) {
-              if (cmatch.size() == 2) {
-                _stream_flute_tsi = stoul(cmatch[1].str());
-              }
-            }
+  _manifest_path =
+      _delivery_protocol == DeliveryProtocol::HLS ? base_path + "manifest.m3u8" : base_path + "manifest.mpd",
+      _cache.add_item(std::make_shared<CachedPlaylist>(
+          _manifest_path,
+          0,
+          [&]() -> const std::string & {
+            spdlog::debug("Service: master manifest requested");
+            return _manifest;
           }
-        }
+      ));
+}
+
+auto MBMS_RT::Service::add_and_start_content_stream(std::shared_ptr<ContentStream> s) -> void // NOLINT
+{
+  spdlog::debug("adding stream with playlist path {}", s->playlist_path());
+  if (_delivery_protocol == DeliveryProtocol::HLS) {
+    for (const auto &stream: _hls_primary_playlist.streams()) {
+      if (stream.uri == s->playlist_path()) {
+        spdlog::debug("matched hls entry with uri {}", stream.uri);
+        s->set_resolution(stream.resolution);
+        s->set_codecs(stream.codecs);
+        s->set_bandwidth(stream.bandwidth);
+        s->set_frame_rate(stream.frame_rate);
       }
     }
+  }
+  _content_streams[s->playlist_path()] = s;
+  s->start();
 
-    if (_stream_type != "none") {
-      _bootstrap_file_parsed = true;
+  if (_delivery_protocol == DeliveryProtocol::HLS) {
+    // recreate the manifest
+    HlsPrimaryPlaylist pl;
+    for (const auto &stream: _content_streams) {
+      HlsPrimaryPlaylist::Stream s{
+          "/" + stream.second->playlist_path(),
+          stream.second->resolution(),
+          stream.second->codecs(),
+          stream.second->bandwidth(),
+          stream.second->frame_rate()
+      };
+      pl.add_stream(s);
     }
+    _manifest = pl.to_string();
+  } else if(_delivery_protocol == DeliveryProtocol::DASH) {
+    _manifest = _dash_manifest.content;
+  }
+}
 
-  }
-}
-auto MBMS_RT::Service::remove_expired_files(unsigned max_age) -> void
-{
-  if (_flute_receiver) {
-    _flute_receiver->remove_expired_files(max_age);
-  }
-}
+auto MBMS_RT::Service::set_delivery_protocol_from_mime_type(const std::string &mime_type) -> void {
+  // Need to remove potential profile from mimeType, example:application/dash+xml;profiles=urn:3GPP:PSS:profile:DASH10
+  std::vector<std::string> strs;
+  boost::split(strs, mime_type, boost::is_any_of(";"));
+  std::string adjusted_mime_type = strs.front();
+  _delivery_protocol =
+      (adjusted_mime_type == ContentTypeConstants::HLS ? DeliveryProtocol::HLS :
+       (adjusted_mime_type == ContentTypeConstants::DASH ? DeliveryProtocol::DASH : DeliveryProtocol::RTP));
+  spdlog::info("Setting delivery type {} from MIME type {}", _delivery_protocol == DeliveryProtocol::HLS ? "HLS" : (
+      _delivery_protocol == DeliveryProtocol::DASH ? "DASH" : "RTP"), mime_type);
+};
+

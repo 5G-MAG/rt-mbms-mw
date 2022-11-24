@@ -14,23 +14,22 @@
 // See the License for the specific language governing permissions and limitations
 // under the License.
 //
-#pragma once
+#include "CdnFile.h"
+#include "spdlog/spdlog.h"
 
-#include <string>
-#include <libconfig.h++>
-#include "cpprest/http_client.h"
+MBMS_RT::CdnFile::CdnFile(size_t length)
+  : _length( length )
+{
+  spdlog::debug("CdnFile with size {} created", length);
+  _buffer = (char*)malloc(length);
+  if (_buffer == nullptr) {
+    throw "Failed to allocate CDN file buffer";
+  }
+}
 
-namespace MBMS_RT {
-  class RpRestClient {
-    public:
-      RpRestClient(const libconfig::Config& cfg);
-
-      virtual ~RpRestClient() {};
-
-      web::json::value getMchInfo();
-      web::json::value getStatus();
-
-    private:
-      std::unique_ptr<web::http::client::http_client> _client;
-  };
+MBMS_RT::CdnFile::~CdnFile() {
+  spdlog::debug("CdnFile destroyed");
+  if (_buffer != nullptr) {
+    free(_buffer);
+  }
 }

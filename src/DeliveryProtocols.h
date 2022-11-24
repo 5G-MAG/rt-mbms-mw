@@ -14,23 +14,9 @@
 // See the License for the specific language governing permissions and limitations
 // under the License.
 //
+
 #pragma once
 
-#include <string>
-#include <libconfig.h++>
-#include "cpprest/http_client.h"
-
 namespace MBMS_RT {
-  class RpRestClient {
-    public:
-      RpRestClient(const libconfig::Config& cfg);
-
-      virtual ~RpRestClient() {};
-
-      web::json::value getMchInfo();
-      web::json::value getStatus();
-
-    private:
-      std::unique_ptr<web::http::client::http_client> _client;
-  };
+  enum class DeliveryProtocol { HLS, DASH, RTP };
 }

@@ -14,23 +14,35 @@
 // See the License for the specific language governing permissions and limitations
 // under the License.
 //
+
 #pragma once
 
 #include <string>
-#include <libconfig.h++>
-#include "cpprest/http_client.h"
+#include <vector>
 
 namespace MBMS_RT {
-  class RpRestClient {
+  class HlsMediaPlaylist {
     public:
-      RpRestClient(const libconfig::Config& cfg);
+      HlsMediaPlaylist(const std::string& content);
+      HlsMediaPlaylist() = default;
+      ~HlsMediaPlaylist() = default;
 
-      virtual ~RpRestClient() {};
+      struct Segment {
+        std::string uri;
+        int seq;
+        double extinf;
+      };
+      const std::vector<Segment>& segments() const { return _segments; };
+      void add_segment(Segment segment) { _segments.push_back(std::move(segment)); };
 
-      web::json::value getMchInfo();
-      web::json::value getStatus();
+      std::string to_string() const;
+
+      void set_target_duration(int duration) { _targetduration = duration; };
+      int target_duration() const { return _targetduration; };
 
     private:
-      std::unique_ptr<web::http::client::http_client> _client;
+      int _version = -1;
+      int _targetduration;
+      std::vector<Segment> _segments = {};
   };
 }

@@ -19,62 +19,43 @@
 #include <string>
 #include <thread>
 #include <libconfig.h++>
-#include "cpprest/http_client.h"
+#include "HlsPrimaryPlaylist.h"
+#include "DashManifest.h"
 #include "File.h"
 #include "Receiver.h"
+#include "ContentStream.h"
+#include "DeliveryProtocols.h"
 
 namespace MBMS_RT {
   class Service {
     public:
-      Service(const libconfig::Config& cfg, std::string tmgi, const std::string& mcast, unsigned long long tsi, std::string iface, boost::asio::io_service& io_service);
+      Service(CacheManagement& cache)
+        : _cache(cache) {};
+      virtual ~Service() = default;
 
-      virtual ~Service();
+      void add_name(const std::string& name, const std::string& lang);
+      void add_and_start_content_stream(std::shared_ptr<ContentStream> s);
+      void read_master_manifest(const std::string& manifest, const std::string& base_path);
 
-      std::vector<std::shared_ptr<LibFlute::File>> fileList();
+      const std::map<std::string, std::string>& names() const { return _names; };
+      const std::map<std::string, std::shared_ptr<ContentStream>>& content_streams() const { return _content_streams; };
 
-      void setIsServiceAnnouncement(bool val) { _is_service_announcement = val; };
-      bool isServiceAnnouncement() { return _is_service_announcement; };
+      DeliveryProtocol delivery_protocol() const { return _delivery_protocol; };
+      std::string delivery_protocol_string() const { return _delivery_protocol == DeliveryProtocol::HLS ? "HLS" :
+        (_delivery_protocol == DeliveryProtocol::DASH ? "DASH" : "RTP"); };
+      void set_delivery_protocol_from_mime_type(const std::string& mime_type);
 
-      bool bootstrapped() { return _bootstrap_file_parsed; };
-
-      void tryParseBootstrapFile(std::string str);
-
-      std::string streamType() const  { return _stream_type; };
-      std::string streamTmgi() const { return _stream_tmgi; };
-      void setStreamTmgi(std::string tmgi) { _stream_tmgi = tmgi; };
-      std::string streamMcast() const { return _stream_mcast_addr + ":" + _stream_mcast_port; };
-      unsigned long long streamFluteTsi() const { return _stream_flute_tsi; };
-
-      std::string serviceDescription() const { return _service_description; };
-      std::string serviceName() const { return _service_name; };
-      std::string sdp() const { return _sdp; };
-      std::string m3u() const { return _m3u; };
-
-      void remove_expired_files(unsigned max_age);
+      const std::string& manifest_path() const { return  _manifest_path; };
 
     private:
-      const libconfig::Config& _cfg;
+      CacheManagement& _cache;
+      DeliveryProtocol _delivery_protocol;
+      std::map<std::string, std::shared_ptr<ContentStream>> _content_streams;
+      std::map<std::string, std::string> _names;
 
-      std::string _iface;
-      std::string _tmgi;
-      std::string _mcast_addr;
-      std::string _mcast_port;
-      unsigned long long _tsi = 0;
-      std::thread _flute_thread;
-      std::unique_ptr<LibFlute::Receiver> _flute_receiver;
-
-      bool _is_service_announcement = false;
-      bool _bootstrap_file_parsed = false;
-
-      std::string _service_description = "";
-      std::string _service_name = "";
-      std::string _sdp = "";
-      std::string _m3u = "";
-
-      std::string _stream_tmgi = {};
-      std::string _stream_type = "none";
-      std::string _stream_mcast_addr = {};
-      std::string _stream_mcast_port = {};
-      unsigned long long _stream_flute_tsi = 0;
+      HlsPrimaryPlaylist _hls_primary_playlist;
+      DashManifest _dash_manifest;
+      std::string _manifest;
+      std::string _manifest_path;
   };
 }

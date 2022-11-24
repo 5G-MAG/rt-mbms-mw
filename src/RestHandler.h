@@ -32,6 +32,8 @@
 
 #include "File.h"
 #include "Service.h"
+#include "ServiceAnnouncement.h"
+#include "CacheManagement.h"
 
 namespace MBMS_RT {
   /**
@@ -45,18 +47,23 @@ namespace MBMS_RT {
        *  @param cfg Config singleton reference
        *  @param url URL to open the server on
        */
-      RestHandler(const libconfig::Config& cfg, const std::string& url, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& services );
+      RestHandler(const libconfig::Config& cfg, const std::string& url, const CacheManagement& cache,
+          const std::unique_ptr<MBMS_RT::ServiceAnnouncement>* service_announcement,
+          const std::map<std::string, std::shared_ptr<MBMS_RT::Service>>& services );
       /**
        *  Default destructor.
        */
       virtual ~RestHandler();
 
     private:
+
+      const CacheManagement& _cache;
       void get(web::http::http_request message);
       void put(web::http::http_request message);
       const libconfig::Config& _cfg;
    //   const std::map<std::string, LibFlute::File>& _files;
-      const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& _services;
+      const std::map<std::string, std::shared_ptr<Service>>& _services;
+      const std::unique_ptr<MBMS_RT::ServiceAnnouncement>* _service_announcement_h = {};
       unsigned _total_cache_size;
 
       std::unique_ptr<web::http::experimental::listener::http_listener> _listener;

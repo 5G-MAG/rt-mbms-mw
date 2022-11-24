@@ -16,6 +16,7 @@
 //
 
 #include "RestHandler.h"
+#include "seamless/SeamlessContentStream.h"
 
 #include <memory>
 #include <utility>
@@ -31,10 +32,13 @@ using web::http::status_codes;
 using web::http::experimental::listener::http_listener;
 using web::http::experimental::listener::http_listener_config;
 
-MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, const unsigned& total_cache_size, const std::map<std::string, std::unique_ptr<MBMS_RT::Service>>& services )
+MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::string& url, const CacheManagement& cache,
+    const std::unique_ptr<MBMS_RT::ServiceAnnouncement>* service_announcement,
+    const std::map<std::string, std::shared_ptr<Service>>& services )
     : _cfg(cfg)
     , _services(services) 
-    , _total_cache_size(total_cache_size) 
+    , _cache(cache)
+    , _service_announcement_h(service_announcement)
 {
   http_listener_config server_config;
   if (url.rfind("https", 0) == 0) {
@@ -73,8 +77,8 @@ MBMS_RT::RestHandler::RestHandler(const libconfig::Config& cfg, const std::strin
 MBMS_RT::RestHandler::~RestHandler() = default;
 
 void MBMS_RT::RestHandler::get(http_request message) {
-  spdlog::debug("Received GET request {}", message.to_string() );
   auto uri = message.relative_uri();
+        spdlog::debug("request for  {}", uri.to_string() );
   auto paths = uri::split_path(uri::decode(message.relative_uri().path()));
   if (_require_bearer_token &&
     (message.headers()["Authorization"] != "Bearer " + _api_key)) {
@@ -86,71 +90,116 @@ void MBMS_RT::RestHandler::get(http_request message) {
     message.reply(status_codes::NotFound);
   } else {
     if (paths[0] == _api_path) {
-      if (paths[1] == "files") {
-        std::vector<value> files;
-        for (const auto& [tmgi, service] : _services) {
-          for (const auto& file : service->fileList()) {
-            value f;
-            f["tmgi"] = value(tmgi);
-            f["access_count"] = value(file->access_count());
-            f["location"] = value(file->meta().content_location);
-            f["content_length"] = value(file->meta().content_length);
-            f["received_at"] = value(file->received_at());
-            f["age"] = value(time(nullptr) - file->received_at());
-            files.push_back(f);
-          }
-        }
-        message.reply(status_codes::OK, value::array(files));
-      } else if (paths[1] == "services") {
-        std::vector<value> services;
-        for (const auto& [tmgi, service] : _services) {
-          if (!service->bootstrapped()) continue;
-          value s;
-          s["service_tmgi"] = value(tmgi);
-          s["service_name"] = value(service->serviceName());
-          s["service_description"] = value(service->serviceDescription());
-          s["sdp"] = value(service->sdp());
-          s["m3u"] = value(service->m3u());
-          s["stream_tmgi"] = value(service->streamTmgi());
-          s["stream_type"] = value(service->streamType());
-          s["stream_mcast"] = value(service->streamMcast());
-          services.push_back(s);
-        }
-        message.reply(status_codes::OK, value::array(services));
-      } 
-    } else if (paths[0] == "f") {
-      for (const auto& [tmgi, service] : _services) {
-        if (tmgi == paths[1]) {
-          std::vector<std::string> location(&paths[2],&paths[paths.size()]);
-          auto path = boost::algorithm::join(location, "/");
-          spdlog::debug("searching for location {}", path);
-          for (const auto& file : service->fileList()) {
-            auto file_loc = file->meta().content_location;
-            file_loc = file_loc.substr(0, file_loc.find('?'));
-            spdlog::debug("checking {}", file_loc );
-            bool flute_ffmpeg_enabled = false;
-            _cfg.lookupValue("mw.flute_ffmpeg.enabled", flute_ffmpeg_enabled);
-            std::string target_path = flute_ffmpeg_enabled ? "/" + path : path;
-            if (file_loc == target_path) {
-              spdlog::debug("found!");
-              file->log_access();
-              auto instream = Concurrency::streams::rawptr_stream<uint8_t>::open_istream((uint8_t*)file->buffer(), file->meta().content_length);
-              message.reply(status_codes::OK, instream);
-             
+      if (paths[1] == "service_announcement") {
+        if (*_service_announcement_h) {
+          std::vector<value> items;
+          for (const auto& item : (*_service_announcement_h)->items()) {
+            if (item.content_type != "application/mbms-envelope+xml") {
+              value i;
+              i["location"] = value(item.uri);
+              i["type"] = value(item.content_type);
+              i["valid_from"] = value(item.valid_from);
+              i["valid_until"] = value(item.valid_until);
+              i["version"] = value(item.version);
+              i["content"] = value(item.content);
+              items.push_back(i);
             }
           }
+          value sa;
+          sa["id"] = value((*_service_announcement_h)->toi());
+          sa["content"] = value((*_service_announcement_h)->content());
+          sa["items"] = value::array(items);
+          message.reply(status_codes::OK, sa);
+          return;
+        } else {
+          message.reply(status_codes::NotFound);
+          return;
         }
+      } else if (paths[1] == "files") {
+        std::vector<value> files;
+        for (const auto& item : _cache.item_map()) {
+          value f;
+          f["source"] = value(item.second->item_source_as_string());
+          f["location"] = value(item.second->content_location());
+          f["content_length"] = value(item.second->content_length());
+          f["received_at"] = value(item.second->received_at());
+          if (item.second->received_at() == 0) {
+            f["age"] = value(10000);
+          } else {
+            f["age"] = value(time(nullptr) - item.second->received_at());
+          }
+          files.push_back(f);
+        }
+        message.reply(status_codes::OK, value::array(files));
+        return;
+      } else if (paths[1] == "services") {
+        std::vector<value> services;
+        for (const auto& service : _services) {
+          auto s = service.second;
+          value ser;
+
+          std::vector<value> names;
+          for (const auto& name : s->names()) {
+            value n;
+            n["lang"] = value(name.first);
+            n["name"] = value(name.second);
+            names.push_back(n);
+          }
+          ser["names"] = value::array(names);
+          ser["protocol"] = value(s->delivery_protocol_string());
+          ser["manifest_path"] = value(s->manifest_path());
+
+          std::vector<value> streams;
+          for (const auto& stream : s->content_streams()) {
+            value s;
+            s["base"] = value(stream.second->base());
+            s["type"] = value(stream.second->stream_type_string());
+            s["flute_info"] = value(stream.second->flute_info());
+            s["resolution"] = value(stream.second->resolution());
+            s["codecs"] = value(stream.second->codecs());
+            s["bandwidth"] = value(stream.second->bandwidth());
+            s["frame_rate"] = value(stream.second->frame_rate());
+            s["playlist_path"] = value(stream.second->playlist_path());
+            if (stream.second->stream_type() == ContentStream::StreamType::SeamlessSwitching) {
+              s["cdn_ept"] = value(std::dynamic_pointer_cast<SeamlessContentStream>(stream.second)->cdn_endpoint());
+            } else {
+              s["cdn_ept"] = value("n/a");
+            }
+            streams.push_back(s);
+          }
+          ser["streams"] = value::array(streams);
+
+          services.push_back(ser);
+        }
+        message.reply(status_codes::OK, value::array(services));
+        return;
+      } else {
+        message.reply(status_codes::NotFound);
+        return;
       }
-      message.reply(status_codes::NotFound);
     } else {
-      message.reply(status_codes::NotFound);
+      auto path = uri.to_string().erase(0,1); // remove leading /
+      spdlog::debug("checking for file at path {}", path );
+
+      auto it = _cache.item_map().find(path);
+      if (it != _cache.item_map().cend()) {
+        if (it->second->buffer() != nullptr) {
+          web::http::http_response response(status_codes::OK);
+          response.headers().add(U("RT-MBMS-MW-File-Origin"), it->second->item_source_as_string());
+          auto instream = Concurrency::streams::rawptr_stream<uint8_t>::open_istream((uint8_t*)it->second->buffer(), it->second->content_length());
+          response.set_body(instream);
+          message.reply(response);
+        } else {
+          message.reply(status_codes::NotFound);
+        }
+      } else {
+        message.reply(status_codes::NotFound);
+      }
     }
   }
 }
 
 void MBMS_RT::RestHandler::put(http_request message) {
-  spdlog::debug("Received PUT request {}", message.to_string() );
-
   if (_require_bearer_token &&
     (message.headers()["Authorization"] != "Bearer " + _api_key)) {
     message.reply(status_codes::Unauthorized);

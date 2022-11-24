@@ -14,23 +14,33 @@
 // See the License for the specific language governing permissions and limitations
 // under the License.
 //
+
 #pragma once
 
 #include <string>
-#include <libconfig.h++>
-#include "cpprest/http_client.h"
+#include <vector>
 
 namespace MBMS_RT {
-  class RpRestClient {
+  class HlsPrimaryPlaylist {
     public:
-      RpRestClient(const libconfig::Config& cfg);
+      HlsPrimaryPlaylist(const std::string& content, const std::string& base_path);
+      HlsPrimaryPlaylist() = default;
+      ~HlsPrimaryPlaylist() = default;
 
-      virtual ~RpRestClient() {};
+      struct Stream {
+        std::string uri;
+        std::string resolution;
+        std::string codecs;
+        unsigned long bandwidth;
+        double frame_rate;
+      };
+      const std::vector<Stream>& streams() const { return _streams; };
+      void add_stream(Stream stream) { _streams.push_back(std::move(stream)); };
 
-      web::json::value getMchInfo();
-      web::json::value getStatus();
-
+      std::string to_string() const;
     private:
-      std::unique_ptr<web::http::client::http_client> _client;
+      std::vector<std::pair<std::string, std::string>> parse_parameters(const std::string& line) const;
+      int _version = -1;
+      std::vector<Stream> _streams = {};
   };
 }

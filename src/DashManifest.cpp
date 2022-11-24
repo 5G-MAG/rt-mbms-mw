@@ -1,7 +1,7 @@
 // 5G-MAG Reference Tools
 // MBMS Middleware Process
 //
-// Copyright (C) 2021 Klaus Kühnhammer (Österreichische Rundfunksender GmbH & Co KG)
+// Copyright (C) 2021 Daniel Silhavy (Fraunhofer FOKUS)
 //
 // Licensed under the License terms and conditions for use, reproduction, and
 // distribution of 5G-MAG software (the “License”).  You may not use this file
@@ -10,27 +10,12 @@
 // agreed to in writing, software distributed under the License is distributed on
 // an “AS IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 // or implied.
-// 
+//
 // See the License for the specific language governing permissions and limitations
 // under the License.
 //
-#pragma once
 
-#include <string>
-#include <libconfig.h++>
-#include "cpprest/http_client.h"
+#include "DashManifest.h"
 
-namespace MBMS_RT {
-  class RpRestClient {
-    public:
-      RpRestClient(const libconfig::Config& cfg);
-
-      virtual ~RpRestClient() {};
-
-      web::json::value getMchInfo();
-      web::json::value getStatus();
-
-    private:
-      std::unique_ptr<web::http::client::http_client> _client;
-  };
-}
+MBMS_RT::DashManifest::DashManifest(const std::string &content, const std::string &base_path)
+    : content(content), base_path(base_path) {}
