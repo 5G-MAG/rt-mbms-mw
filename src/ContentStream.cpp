@@ -103,9 +103,18 @@ auto MBMS_RT::ContentStream::flute_file_received(std::shared_ptr<LibFlute::File>
     if (_delivery_protocol == MBMS_RT::DeliveryProtocol::DASH) {
       content_location = _base_path + content_location;
     }
-    _cache.add_item(std::make_shared<CachedFile>(
-        content_location, file->received_at(), std::move(file))
-    );
+
+    //if this is an MPD also update our internal representation of the MPD
+    if (file->meta().content_location.find(".mpd") != std::string::npos) {
+      _cache.add_item(std::make_shared<CachedFile>(
+          _base_path + "manifest.mpd", file->received_at(), std::move(file))
+      );
+    } else {
+      _cache.add_item(std::make_shared<CachedFile>(
+          content_location, file->received_at(), std::move(file))
+      );
+    }
+
   }
 }
 
