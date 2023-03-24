@@ -146,4 +146,4 @@ mw: {
 ````
 ## Docker Implementation
 
-An easy to use docker Implentation is also available. The `middleware` folder contains all the essential files for running the process in a container. Please check into the [wiki](https://github.com/5G-MAG/Documentation-and-Architecture/wiki/5G-MAG-Reference-Tools:-Docker-Implementation-of-MBMS-processes) page for a detailed description on how to run the processes in a docker container. 
+An easy to use docker Implentation is also available. The `middleware` folder contains all the essential files for running the process in a container. Please check into the [wiki](https://github.com/5G-MAG/Documentation-and-Architecture/wiki/5G-MAG-Reference-Tools:-Docker-Implementation-of-RT-MBMS-processes) page for a detailed description on how to run the processes in a docker container. 
