@@ -30,6 +30,7 @@
 #include "gmime/gmime.h"
 #include "tinyxml2.h"
 #include "cpprest/base_uri.h"
+#include <gzip/decompress.hpp>
 
 
 MBMS_RT::ServiceAnnouncement::ServiceAnnouncement(const libconfig::Config &cfg, std::string tmgi,
@@ -73,10 +74,13 @@ auto MBMS_RT::ServiceAnnouncement::start_flute_receiver(const std::string &mcast
         [&](std::shared_ptr<LibFlute::File> file) { //NOLINT
           spdlog::info("{} (TOI {}) has been received",
                        file->meta().content_location, file->meta().toi);
-          if (file->meta().content_location.find("bootstrap.multipart") != std::string::npos &&
-              (!_bootstrapped || _toi != file->meta().toi)) {
+          if (!_bootstrapped || _toi != file->meta().toi) {
             _toi = file->meta().toi;
-            _raw_content = std::string(file->buffer());
+            if (file->meta().content_type == "application/x-gzip") {
+              _raw_content = gzip::decompress(file->buffer(), file->length());
+            } else {
+              _raw_content = std::string(file->buffer());
+            }
             parse_bootstrap(file->buffer());
           }
         });
