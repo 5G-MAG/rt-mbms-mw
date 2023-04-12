@@ -94,11 +94,13 @@ void MBMS_RT::Middleware::tick_handler() {
     for (auto const &mtch: mch.at("mtchs").as_array()) {
       auto tmgi = mtch.at("tmgi").as_string();
       auto dest = mtch.at("dest").as_string();
+      unsigned tsi = 0;
+      _cfg.lookupValue("mw.service_announcement_tsi", tsi);
       auto is_service_announcement = std::stoul(tmgi.substr(0, 6), nullptr, 16) < 0xF;
       if (!dest.empty() && is_service_announcement && !_service_announcement) {
         // automatically start receiving the service announcement
         // 26.346 5.2.3.1.1 : the pre-defined TSI value shall be "0". 
-        _service_announcement = std::make_unique<MBMS_RT::ServiceAnnouncement>(_cfg, tmgi, dest, 0 /*TSI*/, _interface,
+        _service_announcement = std::make_unique<MBMS_RT::ServiceAnnouncement>(_cfg, tmgi, dest, tsi, _interface,
                                                                                _io_service,
                                                                                _cache, _seamless,
                                                                                boost::bind(&Middleware::get_service,

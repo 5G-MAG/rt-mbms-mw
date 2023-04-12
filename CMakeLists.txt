@@ -42,6 +42,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/src
     SYSTEM
     ${SPDLOG_INCLUDEDIR}
+    ${PROJECT_SOURCE_DIR}/lib/gzip-hpp/include
     PkgConfig::GMIME
     PkgConfig::TINYXML
     )
