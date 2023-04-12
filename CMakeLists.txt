@@ -68,6 +68,8 @@ target_link_libraries( mw
     cpprestsdk::cpprest
     flute
     z
+    ssl
+    crypto
     PkgConfig::GMIME
     PkgConfig::TINYXML
 )
