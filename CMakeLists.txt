@@ -42,6 +42,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/src
     SYSTEM
     ${SPDLOG_INCLUDEDIR}
+    ${PROJECT_SOURCE_DIR}/lib/gzip-hpp/include
     PkgConfig::GMIME
     PkgConfig::TINYXML
     )
@@ -67,6 +68,8 @@ target_link_libraries( mw
     cpprestsdk::cpprest
     flute
     z
+    ssl
+    crypto
     PkgConfig::GMIME
     PkgConfig::TINYXML
 )

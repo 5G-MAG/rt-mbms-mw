@@ -5,3 +5,6 @@
 	path = supporting_files/rt-common-shared
 	url = https://github.com/5G-MAG/rt-common-shared
 	branch = feature/mbms
+[submodule "lib/gzip-hpp"]
+	path = lib/gzip-hpp
+	url = git@github.com:mapbox/gzip-hpp.git
