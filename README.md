@@ -1,4 +1,4 @@
-# 5G-MAG Reference Tools: MBMS Middleware
+# MBMS Middleware
 
 This repository holds the MBMS Middleware implementation for the 5G-MAG Reference Tools.
 
