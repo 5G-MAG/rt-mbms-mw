@@ -75,7 +75,7 @@ The MBMS Middleware, like the MBMS Modem, also installs a systemd unit.
 
 ## Running
 The configuration for the *MBMS Middleware* (file paths, max file age, api ports, ...) can be changed in the <a href="#configuration">configuration file</a>.
-When starting, the *MBMS Middleware* listens to the local [tun interface](https://github.com/5G-MAG/Documentation-and-Architecture/wiki/MBMS-Modem#multicast-routing). Received multicast packets from the *Receive Process* are FLUTE decoded and the files are stored in the cache.
+When starting, the *MBMS Middleware* listens to the local [tun interface](https://github.com/5G-MAG/rt-mbms-modem#multicast-routing). Received multicast packets from the *Receive Process* are FLUTE decoded and the files are stored in the cache.
 
 ### Background process
 The *MBMS Middleware* runs manually or as a background process (daemon).
