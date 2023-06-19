@@ -1,6 +1,7 @@
 [submodule "lib/libflute"]
 	path = lib/libflute
 	url = https://github.com/5G-MAG/rt-libflute.git
+	branch = main
 [submodule "supporting_files/rt-common-shared"]
 	path = supporting_files/rt-common-shared
 	url = https://github.com/5G-MAG/rt-common-shared
