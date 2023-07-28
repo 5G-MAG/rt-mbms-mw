@@ -1,29 +1,31 @@
-# 5G-MAG Reference Tools: MBMS Middleware
+# MBMS Middleware
 
 This repository holds the MBMS Middleware implementation for the 5G-MAG Reference Tools.
 
 ## Introduction
 
+[]
+
+### Specifications
+
+A list of specification related to this repository is available in the [Standards Wiki](https://github.com/5G-MAG/Standards/wiki/MBMS-&-LTE-based-5G-Broadcast:-Relevant-Specifications).
+
+### About the implementation
+
 The MBMS Middleware implementation provides the best available content to the (internal or external) application at any time. If available, it combines content from (mobile) broadband, WiFi with the 5G BC content from the MBMS Modem using an advanced decision logic. The content is presented to the applications in form of an intelligent edge cache ready for pick up via http(s).
 
 ![Architecture](https://github.com/5G-MAG/Documentation-and-Architecture/blob/main/media/architecture/5G-MAG%20RT%20Architecture%20Current%20Architecture%205G%20Media%20Client%20v8.drawio.png)
 
-> **Status**: The specific parts of the *MBMS Middleware*, especially outer interfaces and the surrounding environment is currently subject of investigation of the project team.  The project team targets to use as much as possible from existing specifications and concepts (3GPP, DVB,...) for the *MBMS Middleware*.
-
-### How it works
+This is how it works:
 * In the current release 0.9.x the *MBMS Middleware* uses the UDP multicast IP packets from the *MBMS Modem*.
 * If the payload contains FLUTE decoded content (files, i.e. Service Announcement, DASH, HLS) the *MBMS Middleware* decodes the packets with its FLUTE/ALC decoder into files.
 * The *MBMS Middleware* includes a web-cache server and each service is available like an CDN publishing point including manifest and segment files.
 * Information how to access the endpoints (e.g. URL to manifest.m3u8 or manifest.mpd) can be found on the corresponding Middleware tab in the *GUI* or *Webinterface*.
-> **Note:** The FLUTE/ALC decoder is available as an independent repository (library) [here](https://github.com/5G-MAG/libflute) and includes encoding/decoding functionalities.
-
-## Specifications
-
-A list of specification related to this repository is available [here](https://github.com/5G-MAG/Standards/blob/main/Specifications_MBMS.md).
+> **Note:** The FLUTE/ALC decoder is available as an independent repository (library) [here](https://github.com/5G-MAG/rt-libflute) and includes encoding/decoding functionalities.
 
 ## Install dependencies
 
-### Ubuntu 20.04 LTS
+On Ubuntu 20.04 LTS:
 
 ````
 sudo apt update
@@ -32,7 +34,7 @@ sudo snap install cmake --classic
 sudo pip3 install cpplint
 ````
 
-### Ubuntu 22.04 LTS
+On Ubuntu 22.04 LTS:
 ````
 sudo apt update
 sudo apt install ssh g++ git libboost-atomic-dev libboost-thread-dev libboost-system-dev libboost-date-time-dev libboost-regex-dev libboost-filesystem-dev libboost-random-dev libboost-chrono-dev libboost-serialization-dev libwebsocketpp-dev openssl libssl-dev ninja-build libspdlog-dev libmbedtls-dev libboost-all-dev libconfig++-dev libsctp-dev libfftw3-dev vim libcpprest-dev libusb-1.0-0-dev net-tools smcroute python3-psutil python3-pip clang-tidy gpsd gpsd-clients libgps-dev libgmime-3.0-dev libtinyxml2-dev libtinyxml2-9
@@ -53,7 +55,7 @@ git submodule update
 mkdir build && cd build
 ````
 
-## Build the MBMS Middleware
+## Building
 
 To build the MBMS Middleware from the source:
 
@@ -72,8 +74,8 @@ Build with:
 The MBMS Middleware, like the MBMS Modem, also installs a systemd unit.
 
 ## Running
-The configuration for the *MBMS Middleware* (file paths, max file age, api ports, ...) can be changed in the <a href="#config-file">configuration file</a>.
-When starting, the *MBMS Middleware* listens to the local [tun interface](https://github.com/5G-MAG/Documentation-and-Architecture/wiki/MBMS-Modem#multicast-routing). Received multicast packets from the *Receive Process* are FLUTE decoded and the files are stored in the cache.
+The configuration for the *MBMS Middleware* (file paths, max file age, api ports, ...) can be changed in the <a href="#configuration">configuration file</a>.
+When starting, the *MBMS Middleware* listens to the local [tun interface](https://github.com/5G-MAG/rt-mbms-modem#multicast-routing). Received multicast packets from the *Receive Process* are FLUTE decoded and the files are stored in the cache.
 
 ### Background process
 The *MBMS Middleware* runs manually or as a background process (daemon).
@@ -99,8 +101,7 @@ After [installing](https://github.com/5G-MAG/rt-mbms-mw#readme) the *MBMS Middle
 |  `` -? `` | `` --help `` | Give this help list |
 |  `` -V `` | `` --version `` | Print program version |
 
-## Configuration
-### Config file
+### Configuration
 
 The config file for *MBMS Middleware* is located in ``/etc/5gmag-rt.conf)``. The file contains configuration parameters for:
 * Cache
