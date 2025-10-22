@@ -151,4 +151,4 @@ mw: {
 ```
 ## Docker Implementation
 
-An easy to use docker Implentation is also available. The `middleware` folder contains all the essential files for running the process in a container. Please check into the [page](https://5g-mag.github.io/Getting-Started/pages/lte-based-5g-broadcast/docker-implementation.html) page for a detailed description on how to run the processes in a docker container. 
+An easy to use docker Implentation is also available. The `middleware` folder contains all the essential files for running the process in a container. Please check the [tutorial](https://5g-mag.github.io/Getting-Started/pages/lte-based-5g-broadcast/tutorials/docker-implementation.html) for a detailed description on how to run the processes in docker containers. 
