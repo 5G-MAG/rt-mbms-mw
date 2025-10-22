@@ -9,7 +9,7 @@
 
 The MBMS Middleware implementation provides the best available content to the (internal or external) application at any time. If available, it combines content from (mobile) broadband, WiFi with the 5G BC content from the MBMS Modem using an advanced decision logic. The content is presented to the applications in form of an intelligent edge cache ready for pick up via http(s).
 
-![Architecture](https://github.com/5G-MAG/Getting-Started/blob/main/media/architecture/5G-MAG%20RT%20Architecture%20Current%20Architecture%205G%20Media%20Client%20v8.drawio.png)
+![Architecture](https://5g-mag.github.io/Getting-Started/assets/images/5gbc/5gbc_client.png)
 
 > **Status**: The specific parts of the *MBMS Middleware*, especially outer interfaces and the surrounding environment is currently subject of investigation of the project team.  The project team targets to use as much as possible from existing specifications and concepts (3GPP, DVB,...) for the *MBMS Middleware*.
 
